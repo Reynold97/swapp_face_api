@@ -1,0 +1,17 @@
+annotated-types
+anyio
+click
+colorama
+exceptiongroup
+fastapi
+h11
+idna
+numpy
+pillow
+pydantic-core==2.6.3
+pydantic
+python-multipart
+sniffio
+starlette>=0.27.0,<0.28.0
+typing-extensions
+uvicorn

@@ -1,0 +1,16 @@
+numpy
+opencv-python
+onnx
+onnxruntime
+insightface
+psutil
+tk
+customtkinter
+tkinterdnd2
+tkinterdnd2-universal
+pillow
+tensorflow
+opennsfw2
+protobuf
+tqdm
+gfpgan
