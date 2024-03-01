@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roop-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: roop-api
+  template:
+    metadata:
+      labels:
+        app: roop-api
+    spec:
+      containers:
+      - name: roop-api
+        image: leandrodriguez/roop-api:latest
+        imagePullPolicy: IfNotPresent  # This will use a local image if available
+        ports:
+        - containerPort: 5001
