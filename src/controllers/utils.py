@@ -8,7 +8,7 @@ watermark = cv2.imread("./assets/watermark.png")
 
 
 def get_nparray_from_uploadfile(uploadfile: UploadFile) -> np.ndarray:
-    contents = uploadfile.read()
+    contents = uploadfile.file.read()
     nparr = np.frombuffer(contents, np.uint8)
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     return image[:,:,:3]
