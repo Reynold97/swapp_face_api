@@ -1,0 +1,31 @@
+proxy_location: EveryNode
+
+http_options: 
+  host: 0.0.0.0
+  port: 80
+  request_timeout_s: ...
+  keep_alive_timeout_s: ...
+
+grpc_options:
+  port: 9000
+  grpc_servicer_functions: []
+
+logging_config:
+  encoding: TEXT
+  log_level: INFO
+  enable_access_log: true
+
+applications:
+- name: test_ray
+  route_prefix: /
+  import_path: src.main:app
+  runtime_env: 
+    pip:
+      -./requirements_2.txt 
+  deployments:
+  - name: FastAPIWrapper
+    num_replicas: 4
+    max_concurrent_queries: 100
+    ray_actor_options:
+      num_cpus: 0.2
+      num_gpus: 0.0
