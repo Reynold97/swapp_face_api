@@ -4,7 +4,7 @@ from PIL import Image
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from .utils import get_nparray_from_uploadfile, add_watermark, apply_vignette
-from model import swap_face
+from src.model import swap_face
 
 router = APIRouter()
 
