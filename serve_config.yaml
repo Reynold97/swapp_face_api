@@ -18,6 +18,8 @@ applications:
   route_prefix: /
   import_path: src.main:app
   runtime_env:
+    py_modules:
+      - /root/swapp_face_api/src/controllers
     pip:
       - -r /root/swapp_face_api/requirements_2.txt 
   deployments:
