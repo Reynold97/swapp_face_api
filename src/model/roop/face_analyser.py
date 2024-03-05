@@ -3,7 +3,7 @@ from typing import Any, Optional, List
 import insightface
 import numpy
 
-import globals
+from globals import similar_face_distance
 from typing import Frame, Face
 
 FACE_ANALYSER = None
@@ -49,6 +49,6 @@ def find_similar_face(frame: Frame, reference_face: Face) -> Optional[Face]:
         for face in many_faces:
             if hasattr(face, 'normed_embedding') and hasattr(reference_face, 'normed_embedding'):
                 distance = numpy.sum(numpy.square(face.normed_embedding - reference_face.normed_embedding))
-                if distance < globals.similar_face_distance:
+                if distance < similar_face_distance:
                     return face
     return None
