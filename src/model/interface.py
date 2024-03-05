@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from roop import globals
+from .roop import globals
 from roop.face_analyser import get_one_face
 from roop.core import decode_execution_providers
 import roop.processors.frame.face_swapper as swapper
