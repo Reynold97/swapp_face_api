@@ -1,7 +1,7 @@
 import sys
 import uvicorn
 
-from controllers import swap_face
+import controllers.swap_face
 
 from fastapi import FastAPI, status
 from fastapi.responses import HTMLResponse, FileResponse, Response, StreamingResponse
