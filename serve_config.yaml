@@ -16,7 +16,7 @@ logging_config:
 applications:
 - name: test_ray
   route_prefix: /
-  import_path: src.main:app
+  import_path: main:app
   deployments:
   - name: FastAPIWrapper
     num_replicas: 4
