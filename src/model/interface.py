@@ -1,17 +1,17 @@
 import cv2
 import numpy as np
 
-import model.roop.globals
-from model.roop.face_analyser import get_one_face
-from model.roop.core import decode_execution_providers
-import model.roop.processors.frame.face_swapper as swapper
-import model.roop.processors.frame.face_enhancer as enhancer
+import roop.globals
+from roop.face_analyser import get_one_face
+from roop.core import decode_execution_providers
+import roop.processors.frame.face_swapper as swapper
+import roop.processors.frame.face_enhancer as enhancer
 
 swapper.pre_check()
 enhancer.pre_check()
 
-model.roop.globals.execution_providers = decode_execution_providers(['cpu'])
-model.roop.globals.many_faces = True
+roop.globals.execution_providers = decode_execution_providers(['cpu'])
+roop.globals.many_faces = True
 
 def swap_face(model: np.ndarray, face: np.ndarray) -> np.ndarray:
   source_face = get_one_face(face)
@@ -23,9 +23,9 @@ def swap_face(model: np.ndarray, face: np.ndarray) -> np.ndarray:
 if __name__ == '__main__':
   model = cv2.imread('./.github/examples/samurai.png')
   face  = cv2.imread('./.github/examples/Reynold_Oramas.jpg')
-  model.roop.globals.source_path=model 
-  model.roop.globals.target_path=face
-  model.roop.globals.output_path='./.github/examples/output.png'
+  roop.globals.source_path=model 
+  roop.globals.target_path=face
+  roop.globals.output_path='./.github/examples/output.png'
   inswapped = swap_face(model, face)
   cv2.imwrite('./.github/examples/output.png', inswapped)
   print('AAAAAAAAA')
