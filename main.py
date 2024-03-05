@@ -1,7 +1,7 @@
 import sys
 import uvicorn
 
-import controllers.swap_face
+from src.controllers import swap_face
 
 from fastapi import FastAPI, status
 from fastapi.responses import HTMLResponse, FileResponse, Response, StreamingResponse
@@ -24,7 +24,7 @@ app.add_middleware(
 )
 
 # Add controllers
-app.include_router(controllers.swap_face.router)
+app.include_router(swap_face.router)
 
 @app.get("/")
 async def root():
