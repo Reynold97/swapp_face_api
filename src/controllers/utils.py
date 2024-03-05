@@ -7,8 +7,8 @@ from PIL import Image, ImageDraw
 watermark = cv2.imread("./assets/watermark.png")
 
 
-def get_nparray_from_uploadfile(uploadfile: UploadFile) -> np.ndarray:
-    contents = uploadfile.file.read()
+async def get_nparray_from_uploadfile(uploadfile: UploadFile) -> np.ndarray:
+    contents = await uploadfile.read()
     nparr = np.frombuffer(contents, np.uint8)
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     return image[:,:,:3]
