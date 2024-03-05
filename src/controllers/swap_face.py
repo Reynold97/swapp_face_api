@@ -9,11 +9,11 @@ from model import swap_face
 router = APIRouter()
 
 @router.post("/swap_face")
-async def swap(model: UploadFile = File(...), face: UploadFile = File(...), watermark: bool = Form(...), vignette: bool = Form(...)):
+def swap(model: UploadFile = File(...), face: UploadFile = File(...), watermark: bool = Form(...), vignette: bool = Form(...)):
     try:
         # Convert the uploaded images to NumPy arrays
-        model = await get_nparray_from_uploadfile(model)
-        face = await get_nparray_from_uploadfile(face)
+        model = get_nparray_from_uploadfile(model)
+        face = get_nparray_from_uploadfile(face)
 
         result = swap_face(model, face)
         
