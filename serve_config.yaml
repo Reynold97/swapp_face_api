@@ -19,7 +19,7 @@ applications:
   import_path: src.main:app
   runtime_env:
     py_modules:
-      - "." 
+      - . 
     pip:
       - -r /root/swapp_face_api/requirements_2.txt 
   deployments:
