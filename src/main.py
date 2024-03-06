@@ -34,6 +34,8 @@ async def root():
 class FastAPIWrapper:
     pass
 
+app = FastAPIWrapper.bind()
+
 if __name__ == '__main__':
     if sys.argv[1] == 'server':
         uvicorn.run(app=app, host='0.0.0.0', port=5001, log_level="info")
