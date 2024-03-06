@@ -16,7 +16,7 @@ logging_config:
 applications:
 - name: test_ray
   route_prefix: /
-  import_path: main:app
+  import_path: swapp_face_api.src.main:app
   deployments:
   - name: FastAPIWrapper
     num_replicas: 4
