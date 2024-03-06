@@ -1,10 +1,14 @@
 import sys
 import uvicorn
 import controllers.swap_face
+
 from fastapi import FastAPI, status
 from fastapi.responses import HTMLResponse, FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+
+import ray
+from ray import serve
 
 app = FastAPI()
 
@@ -24,6 +28,11 @@ app.include_router(controllers.swap_face.router)
 @app.get("/")
 async def root():
     return Response(status_code=200)
+
+@serve.deployment
+@serve.ingress(app)
+class FastAPIWrapper:
+    pass
 
 if __name__ == '__main__':
     if sys.argv[1] == 'server':
