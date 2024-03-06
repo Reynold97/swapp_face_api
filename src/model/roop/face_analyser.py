@@ -3,7 +3,7 @@ from typing import Any, Optional, List
 import insightface
 import numpy
 
-from globals import similar_face_distance
+from .globals import similar_face_distance
 from typing import Frame, Face
 
 FACE_ANALYSER = None
