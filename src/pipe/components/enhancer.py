@@ -1,4 +1,4 @@
-import numpy
+import numpy as np
 from typing import Any, List, Callable, Optional
 import cv2
 import threading
@@ -7,10 +7,11 @@ from gfpgan.utils import GFPGANer
 from insightface.app.common import Face
 
 import src.globals
-from src.pipe.components.analyzer import get_one_face, get_many_faces, find_similar_face
+#from src.pipe.components.analyzer import get_one_face, get_many_faces, find_similar_face
 from src.utils import conditional_download, resolve_relative_path, is_image
 from src.pipe.components.processor import Processor
 from src.typing import Frame
+from src.pipe.components.analyzer import FaceAnalyzer
 
 
 class FaceEnhancer(Processor):
@@ -18,6 +19,7 @@ class FaceEnhancer(Processor):
     def __init__(self):
         super().__init__('FACE-ENHANCER','../models/GFPGANv1.4.pth')
         self.load_model()  # Ensures model is loaded during instantiation 
+        self.face_analyzer = FaceAnalyzer()
         
     def load_model(self):
         if not self.model:
@@ -57,13 +59,13 @@ class FaceEnhancer(Processor):
         return temp_frame
 
     def process_frame(self, source_face: Optional[Face], reference_face: Optional[Face], temp_frame: Frame) -> Frame:
-        many_faces = get_many_faces(temp_frame)
+        many_faces = self.face_analyzer.get_many_faces(temp_frame)
         for target_face in many_faces:
             temp_frame = self.enhance_face(target_face, temp_frame)
         return temp_frame
     
-    def process_image(self, source_path: str, target_path: str, output_path: str) -> None:
-        target_frame = cv2.imread(target_path)
+    def process_image(self, source: np.ndarray, target: np.ndarray) -> np.ndarray:
+        target_frame = target
         result = self.process_frame(None, None, target_frame)
         #cv2.imwrite(output_path, result)
         return result

@@ -1,16 +1,13 @@
-import glob
 import mimetypes
-import os
-import platform
-import shutil
-import ssl
-import subprocess
 import urllib
-from pathlib import Path
 from typing import List, Optional
 from tqdm import tqdm
-
-import src.globals as globals
+import os
+import cv2
+import numpy as np
+from io import BytesIO
+from PIL import Image
+from fastapi import UploadFile
 
 
 def has_image_extension(image_path: str) -> bool:
@@ -38,3 +35,9 @@ def conditional_download(download_directory_path: str, urls: List[str]) -> None:
 
 def resolve_relative_path(path: str) -> str:
     return os.path.abspath(os.path.join(os.path.dirname(__file__), path))
+
+
+async def read_image_as_array(image_file: UploadFile) -> np.ndarray:
+    image_bytes = await image_file.read()
+    image = Image.open(BytesIO(image_bytes))
+    return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)

@@ -34,5 +34,5 @@ class Processor(ABC):
         pass
     
     @abstractmethod
-    def process_image(self, source_path: str, target_path: str, output_path: str) -> Frame:
+    def process_image(self, source_img: Any, target_path: Any) -> Any:
         pass
