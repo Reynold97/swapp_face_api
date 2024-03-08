@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Response
 from fastapi.middleware.cors import CORSMiddleware
 from src.pipe.components.analyzer import FaceAnalyzer
 from src.pipe.components.swapper import FaceSwapper
@@ -58,6 +58,10 @@ def get_face_enhancer():
 
 #def get_face_analyzer():
 #    return face_analyzer
+
+@app.get("/")
+async def checkhealth():
+    return Response(status_code=200)
 
 @app.post("/swapp_img/")
 async def process_image(source_image: UploadFile = File(...), target_image: UploadFile = File(...), 
