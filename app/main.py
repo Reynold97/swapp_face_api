@@ -1,6 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from app.schema import ImageProcessRequest
 from src.pipe.components.analyzer import FaceAnalyzer
 from src.pipe.components.swapper import FaceSwapper
 from src.pipe.components.enhancer import FaceEnhancer
