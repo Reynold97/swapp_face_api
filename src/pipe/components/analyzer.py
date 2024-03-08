@@ -13,10 +13,10 @@ class FaceAnalyzer:
     def __init__(self, providers: List[str]):
         self.name = 'FACE_ANALYSER'
         self.model = None
+        self.providers = providers
         self.model = self.load_model() # Ensures model is loaded during instantiation
         #self.lock = threading.Lock()  # Ensure thread-safe operations
-        self.providers = providers
-
+       
     def load_model(self) -> Any:
         with threading.Lock():
             if self.model is None:
