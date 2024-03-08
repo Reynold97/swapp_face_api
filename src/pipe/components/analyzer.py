@@ -12,6 +12,7 @@ import src.globals
 class FaceAnalyzer:
     def __init__(self, providers: List[str]):
         self.name = 'FACE_ANALYSER'
+        self.model = None
         self.model = self.load_model() # Ensures model is loaded during instantiation
         #self.lock = threading.Lock()  # Ensure thread-safe operations
         self.providers = providers
