@@ -34,8 +34,8 @@ async def startup_event():
     #download the models
     try:
         download_directory_path = resolve_relative_path('../models')
-        conditional_download(download_directory_path, ["https://huggingface.co/Reynold97/swapp_models/blob/main/inswapper_128.onnx"])
-        conditional_download(download_directory_path, ["https://huggingface.co/Reynold97/swapp_models/blob/main/GFPGANv1.4.pth"])
+        conditional_download(download_directory_path, ["https://huggingface.co/Reynold97/swapp_models/resolve/main/inswapper_128.onnx"])
+        conditional_download(download_directory_path, ["https://huggingface.co/Reynold97/swapp_models/resolve/main/GFPGANv1.4.pth"])
     except Exception as e:
         print(f"Could not download the base models: {str(e)}")
     
