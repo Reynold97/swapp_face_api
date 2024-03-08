@@ -25,3 +25,4 @@ ray[serve]
 fastapi
 uvicorn[standard]
 python-multipart
+httpx

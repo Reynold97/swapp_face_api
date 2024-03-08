@@ -37,7 +37,7 @@ async def startup_event():
         conditional_download(download_directory_path, ['https://huggingface.co/henryruhs/roop/resolve/main/inswapper_128.onnx'])
         conditional_download(download_directory_path, ['https://huggingface.co/henryruhs/roop/resolve/main/GFPGANv1.4.pth'])
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Could not download the base models")
+        print(f"Could not download the base models: {str(e)}")
     
     global face_swapper, face_enhancer, face_analyzer
     face_swapper = FaceSwapper()
