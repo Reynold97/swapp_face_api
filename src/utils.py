@@ -10,7 +10,9 @@ from PIL import Image
 from fastapi import UploadFile
 import httpx
 import asyncio
+from dotenv import load_dotenv
 
+load_dotenv(".env")
 
 def has_image_extension(image_path: str) -> bool:
     return image_path.lower().endswith(('png', 'jpg', 'jpeg', 'webp'))
@@ -24,18 +26,28 @@ def is_image(image_path: str) -> bool:
 
 
 def conditional_download(download_directory_path: str, urls: List[str]) -> None:
+    token = os.getenv("HUGGINGFACE_TOKEN")
+    headers = {"Authorization": f"Bearer {token}"}
+
     if not os.path.exists(download_directory_path):
         os.makedirs(download_directory_path)
+
     for url in urls:
         download_file_path = os.path.join(download_directory_path, os.path.basename(url))
         if not os.path.exists(download_file_path):
-            request = urllib.request.urlopen(url)  # type: ignore[attr-defined]
-            total = int(request.headers.get('Content-Length', 0))
+            req = urllib.request.Request(url, headers=headers)  # Add headers to the request
+            with urllib.request.urlopen(req) as response, open(download_file_path, 'wb') as out_file:
+                data = response.read()  # Read the response data
+                out_file.write(data)
+            total = int(response.headers.get('Content-Length', 0))
             with tqdm(total=total, desc='Downloading', unit='B', unit_scale=True, unit_divisor=1024) as progress:
-                urllib.request.urlretrieve(url, download_file_path, reporthook=lambda count, block_size, total_size: progress.update(block_size))  # type: ignore[attr-defined]
+                progress.update(total)
 
 
 async def async_conditional_download(download_directory_path: str, urls: List[str]) -> None:
+    token = os.getenv("HUGGINGFACE_TOKEN")
+    headers = {"Authorization": f"Bearer {token}"}
+    
     if not os.path.exists(download_directory_path):
         os.makedirs(download_directory_path)
         
@@ -43,22 +55,15 @@ async def async_conditional_download(download_directory_path: str, urls: List[st
         for url in urls:
             download_file_path = os.path.join(download_directory_path, os.path.basename(url))
             if not os.path.exists(download_file_path):
-                # Perform the async request
-                response = await client.get(url)
-                response.raise_for_status()  # Ensure we got a valid response
+                response = await client.get(url, headers=headers)  # Include headers in async request
+                response.raise_for_status()
                 
-                # Get content length for progress bar, defaulting to 0 if not found
-                total = int(response.headers.get('Content-Length', 0))
-                
-                # Write response content to file with tqdm progress bar
-                # Open the file outside of the progress context to avoid closing it on each update
+                total = int(response.headers.get('content-length', 0))
                 with open(download_file_path, 'wb') as f, tqdm(
-                    total=total, desc='Downloading', unit='B', unit_scale=True, unit_divisor=1024
-                ) as progress:
-                    for chunk in response.iter_bytes():
-                        f.write(chunk)
-                        progress.update(len(chunk))
-
+                    total=total, desc='Downloading', unit='B', unit_scale=True, unit_divisor=1024) as progress:
+                    f.write(response.content)
+                    progress.update(total)
+                    
 
 def resolve_relative_path(path: str) -> str:
     return os.path.abspath(os.path.join(os.path.dirname(__file__), path))
