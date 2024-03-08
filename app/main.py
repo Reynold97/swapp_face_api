@@ -40,15 +40,14 @@ async def startup_event():
         print(f"Could not download the base models: {str(e)}")
     
     #global values
-    global execution_providers, many_faces, similar_face_distance
-    #execution_providers = ["CPUExecutionProvider"]
-    execution_providers = suggest_execution_providers()
+    #global many_faces, similar_face_distance
     many_faces = False
     similar_face_distance = 0.85
     
+    execution_providers = ["CPUExecutionProvider"]
     global face_swapper, face_enhancer, face_analyzer
-    face_swapper = FaceSwapper()
-    face_enhancer = FaceEnhancer()
+    face_swapper = FaceSwapper(execution_providers)
+    face_enhancer = FaceEnhancer(execution_providers)
     #face_analyzer = FaceAnalyzer()
     
 def get_face_swapper():

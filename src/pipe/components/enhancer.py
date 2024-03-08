@@ -16,10 +16,10 @@ from src.pipe.components.analyzer import FaceAnalyzer
 
 class FaceEnhancer(Processor):
 
-    def __init__(self):
-        super().__init__('FACE-ENHANCER','../models/GFPGANv1.4.pth')
+    def __init__(self, providers: List[str]):
+        super().__init__('FACE-ENHANCER','../models/GFPGANv1.4.pth', providers)
         self.load_model()  # Ensures model is loaded during instantiation 
-        self.face_analyzer = FaceAnalyzer()
+        self.face_analyzer = FaceAnalyzer(self.providers)
         
     def load_model(self):
         if not self.model:
@@ -27,10 +27,10 @@ class FaceEnhancer(Processor):
             with threading.Lock():
                 self.model = GFPGANer(model_path=self.model_path, upscale=1, device=self.get_device())
     
-    def get_device() -> str:
-        if 'CUDAExecutionProvider' in src.globals.execution_providers:
+    def get_device(self) -> str:
+        if 'CUDAExecutionProvider' in self.providers:
             return 'cuda'
-        if 'CoreMLExecutionProvider' in src.globals.execution_providers:
+        if 'CoreMLExecutionProvider' in self.providers:
             return 'mps'
         return 'cpu'
 

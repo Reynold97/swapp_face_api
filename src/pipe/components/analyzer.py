@@ -10,15 +10,16 @@ import src.globals
 
 
 class FaceAnalyzer:
-    def __init__(self):
+    def __init__(self, providers: List[str]):
         self.name = 'FACE_ANALYSER'
         self.model = self.load_model() # Ensures model is loaded during instantiation
         #self.lock = threading.Lock()  # Ensure thread-safe operations
+        self.providers = providers
 
     def load_model(self) -> Any:
         with threading.Lock():
             if self.model is None:
-                self.model = insightface.app.FaceAnalysis(name='buffalo_l', providers=src.globals.execution_providers)
+                self.model = insightface.app.FaceAnalysis(name='buffalo_l', providers=self.providers)
                 self.model.prepare(ctx_id=0)
         return self.model
 

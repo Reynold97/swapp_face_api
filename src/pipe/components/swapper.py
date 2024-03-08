@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Optional, List
 import cv2
 import numpy as np
 import threading
@@ -15,16 +15,16 @@ from src.pipe.components.analyzer import FaceAnalyzer
 
 
 class FaceSwapper(Processor):
-    def __init__(self):        
-        super().__init__('FACE-SWAPPER', '../models/inswapper_128.onnx')
+    def __init__(self, providers: List[str]):        
+        super().__init__('FACE-SWAPPER', '../models/inswapper_128.onnx', providers)
         self.load_model()  # Ensures model is loaded during instantiation
-        self.face_analyzer = FaceAnalyzer()
+        self.face_analyzer = FaceAnalyzer(self.providers)
     
     def load_model(self):
         if not self.model:
             # Thread-safe operation 
             with threading.Lock():
-                self.model = insightface.model_zoo.get_model(self.model_path, providers=src.globals.execution_providers)
+                self.model = insightface.model_zoo.get_model(self.model_path, providers=self.providers)
 
     def clear_model(self) -> None:
         self.model=None
