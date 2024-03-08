@@ -46,7 +46,7 @@ async def startup_event():
     
     #global values
     global execution_providers, many_faces, similar_face_distance
-    execution_providers = ["cpu"]
+    execution_providers = ["CPUExecutionProvider"]
     many_faces = False
     similar_face_distance = 0.85
     

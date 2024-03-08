@@ -10,6 +10,7 @@ from PIL import Image
 from fastapi import UploadFile
 import httpx
 import asyncio
+import onnxruntime
 from dotenv import load_dotenv
 
 load_dotenv(".env")
@@ -73,3 +74,7 @@ async def read_image_as_array(image_file: UploadFile) -> np.ndarray:
     image_bytes = await image_file.read()
     image = Image.open(BytesIO(image_bytes))
     return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+def suggest_execution_providers() -> List[str]:
+    return (onnxruntime.get_available_providers())
+    #['CUDAExecutionProvider', 'CPUExecutionProvider']
