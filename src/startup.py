@@ -1,5 +1,5 @@
 ####swapper
-
+"""
 def pre_check() -> bool:
     download_directory_path = resolve_relative_path('../models')
     conditional_download(download_directory_path, ['https://huggingface.co/henryruhs/roop/resolve/main/inswapper_128.onnx'])
@@ -32,3 +32,4 @@ def pre_start() -> bool:
         update_status('Select an image or video for target path.', NAME)
         return False
     return True
+"""

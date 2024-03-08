@@ -5,6 +5,7 @@ from src.pipe.components.analyzer import FaceAnalyzer
 from src.pipe.components.swapper import FaceSwapper
 from src.pipe.components.enhancer import FaceEnhancer
 from src.utils import conditional_download, resolve_relative_path, read_image_as_array
+from src.globals import execution_providers,similar_face_distance,many_faces
 
 app = FastAPI(title="Image Processing Service")
 
@@ -43,6 +44,12 @@ async def startup_event():
     face_swapper = FaceSwapper()
     face_enhancer = FaceEnhancer()
     #face_analyzer = FaceAnalyzer()
+    
+    #global values
+    global execution_providers, many_faces, similar_face_distance
+    execution_providers = ["cpu"]
+    many_faces = False
+    similar_face_distance = 0.85
     
 def get_face_swapper():
     return face_swapper
