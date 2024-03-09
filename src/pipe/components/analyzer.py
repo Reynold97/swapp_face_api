@@ -38,7 +38,7 @@ class FaceAnalyzer:
 
     def get_many_faces(self, frame: Frame) -> Optional[List[Face]]:
         try:
-            return self.get_face_analyser().get(frame)
+            return self.model.get(frame)
         except ValueError:
             return None
 

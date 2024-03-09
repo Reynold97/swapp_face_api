@@ -1,12 +1,18 @@
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.pipe.components.analyzer import FaceAnalyzer
 from src.pipe.components.swapper import FaceSwapper
 from src.pipe.components.enhancer import FaceEnhancer
 from src.utils import conditional_download, resolve_relative_path, read_image_as_array, suggest_execution_providers
-from src.globals import execution_providers,similar_face_distance,many_faces
+from src.globals import similar_face_distance,many_faces, reference_face_position
+from dotenv import load_dotenv
+import os
+from PIL import Image
+import io
 
 app = FastAPI(title="Image Processing Service")
+load_dotenv(".env")
 
 # Allowed origins for CORS (Cross-Origin Resource Sharing)
 allowed_origins = [
@@ -40,11 +46,12 @@ async def startup_event():
         print(f"Could not download the base models: {str(e)}")
     
     #global values
-    #global many_faces, similar_face_distance
-    many_faces = False
-    similar_face_distance = 0.85
+    #global many_faces, similar_face_distance, reference_face_position
+    #many_faces = False
+    #similar_face_distance = 0.85
+    #reference_face_position = 0
     
-    execution_providers = ["CPUExecutionProvider"]
+    execution_providers = os.getenv("PROVIDER")
     global face_swapper, face_enhancer, face_analyzer
     face_swapper = FaceSwapper(execution_providers)
     face_enhancer = FaceEnhancer(execution_providers)
@@ -74,6 +81,10 @@ async def process_image(source_image: UploadFile = File(...), target_image: Uplo
         target_array = await read_image_as_array(target_image)
     except Exception as e:
         raise HTTPException(status_code=500, detail="Something was wrong with the images")
+    
+    many_faces = False
+    similar_face_distance = 0.85
+    reference_face_position = 0
      
     try:   
         # Now you can use swapper, enhancer, and analyzer directly
@@ -82,4 +93,17 @@ async def process_image(source_image: UploadFile = File(...), target_image: Uplo
     except Exception as e:
         raise HTTPException(status_code=500, detail="Something was wrong with the processing")
     
-    return enhancer_result
+    # Convert from BGR to RGB
+    result = enhancer_result[:, :, ::-1]  
+
+    # Convertir el array en una imagen
+    image = Image.fromarray(result)
+        
+    # Convert PIL Image to a byte stream (in memory)
+    byte_io = io.BytesIO()
+    image.save(byte_io, format="PNG")
+    byte_io.seek(0)  # Go back to the start of the bytes stream
+
+    # Return image as a stream
+    return StreamingResponse(byte_io, media_type="image/png")
+    
