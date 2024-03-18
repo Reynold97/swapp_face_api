@@ -1,12 +1,6 @@
 from abc import ABC, abstractmethod
-import threading
-from typing import Any, Optional, List
-import cv2
-import numpy
+from typing import Any, List
 
-from insightface.app.common import Face
-
-from src.typing import Frame
 from src.utils import resolve_relative_path
 
 

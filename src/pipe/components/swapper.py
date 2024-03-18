@@ -1,13 +1,9 @@
-from typing import Any, Optional, List
-import cv2
-import numpy as np
+from typing import List
 import threading
 
 import insightface
 from insightface.app.common import Face
 
-from src.utils import resolve_relative_path, conditional_download
-#from src.pipe.components.analyzer import get_one_face, get_many_faces, find_similar_face
 from src.pipe.components.processor import Processor
 import src.globals
 from src.typing import Frame

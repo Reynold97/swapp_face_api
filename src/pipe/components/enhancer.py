@@ -1,14 +1,10 @@
-import numpy as np
-from typing import Any, List, Callable, Optional
-import cv2
+from typing import List
 import threading
 
 from gfpgan.utils import GFPGANer
 from insightface.app.common import Face
 
 import src.globals
-#from src.pipe.components.analyzer import get_one_face, get_many_faces, find_similar_face
-from src.utils import conditional_download, resolve_relative_path, is_image
 from src.pipe.components.processor import Processor
 from src.typing import Frame
 
