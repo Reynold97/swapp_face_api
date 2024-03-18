@@ -53,7 +53,8 @@ async def startup_event():
     #similar_face_distance = 0.85
     #reference_face_position = 0
     
-    execution_providers = os.getenv("PROVIDER")
+    providers_str = os.getenv('PROVIDERS', 'CPUExecutionProvider')  # Defaulting to CPUExecutionProvider if not set
+    execution_providers = providers_str.split(',')
     #global face_swapper, face_enhancer, face_analyzer
     #face_swapper = FaceSwapper(execution_providers)
     #face_enhancer = FaceEnhancer(execution_providers)

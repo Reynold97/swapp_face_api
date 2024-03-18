@@ -16,6 +16,7 @@ from src.utils import conditional_download, resolve_relative_path, is_image
 
 Frame = numpy.ndarray[Any, Any]
 
+# This is just a collection of the important methods from the original repo
 ##################################################################################################
 
 FACE_SWAPPER = None

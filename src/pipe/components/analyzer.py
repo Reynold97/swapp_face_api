@@ -12,7 +12,7 @@ from src.pipe.components.processor import Processor
 
 class FaceAnalyzer(Processor):      
     def __init__(self, providers: List[str]):
-        super().__init__('FACE_ANALYSER', 'buffalo_l', providers)  # model path is only the model name because is downloaded from insightface, not local.
+        super().__init__('FACE_ANALYSER', None, providers)  # model path is None because is downloaded from insightface, not local.
         self.load_model() # Ensures model is loaded during instantiation
        
     def load_model(self) -> Any:
