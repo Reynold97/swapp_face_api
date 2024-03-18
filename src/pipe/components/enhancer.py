@@ -11,7 +11,6 @@ import src.globals
 from src.utils import conditional_download, resolve_relative_path, is_image
 from src.pipe.components.processor import Processor
 from src.typing import Frame
-from src.pipe.components.analyzer import FaceAnalyzer
 
 
 class FaceEnhancer(Processor):
@@ -19,7 +18,6 @@ class FaceEnhancer(Processor):
     def __init__(self, providers: List[str]):
         super().__init__('FACE-ENHANCER','../models/GFPGANv1.4.pth', providers)
         self.load_model()  # Ensures model is loaded during instantiation 
-        self.face_analyzer = FaceAnalyzer(self.providers)
         
     def load_model(self):
         if not self.model:
@@ -33,12 +31,6 @@ class FaceEnhancer(Processor):
         if 'CoreMLExecutionProvider' in self.providers:
             return 'mps'
         return 'cpu'
-
-    def clear_model(self) -> None:
-        self.model=None
-
-    def post_process(self) -> None:
-        self.clear_model()
         
     def enhance_face(self, target_face: Face, temp_frame: Frame) -> Frame:
         start_x, start_y, end_x, end_y = map(int, target_face['bbox'])
@@ -58,14 +50,3 @@ class FaceEnhancer(Processor):
             temp_frame[start_y:end_y, start_x:end_x] = temp_face
         return temp_frame
 
-    def process_frame(self, source_face: Optional[Face], reference_face: Optional[Face], temp_frame: Frame) -> Frame:
-        many_faces = self.face_analyzer.get_many_faces(temp_frame)
-        for target_face in many_faces:
-            temp_frame = self.enhance_face(target_face, temp_frame)
-        return temp_frame
-    
-    def process_image(self, source: np.ndarray, target: np.ndarray) -> np.ndarray:
-        target_frame = target
-        result = self.process_frame(None, None, target_frame)
-        #cv2.imwrite(output_path, result)
-        return result

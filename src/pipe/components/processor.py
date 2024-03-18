@@ -22,18 +22,6 @@ class Processor(ABC):
     def load_model(self) -> Any:
         pass
 
-    @abstractmethod
     def clear_model(self) -> None:
-        pass
+        self.model=None
 
-    @abstractmethod
-    def post_process(self) -> None:
-        pass
-
-    @abstractmethod
-    def process_frame(self, source_face: Optional[Face], reference_face: Optional[Face], temp_frame: Frame) -> Frame:
-        pass
-    
-    @abstractmethod
-    def process_image(self, source_img: Any, target_path: Any) -> Any:
-        pass

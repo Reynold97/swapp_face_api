@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.pipe.components.analyzer import FaceAnalyzer
 from src.pipe.components.swapper import FaceSwapper
 from src.pipe.components.enhancer import FaceEnhancer
+from src.pipe.pipeline import ImagePipeline
 from src.utils import conditional_download, resolve_relative_path, read_image_as_array, suggest_execution_providers
 from src.globals import similar_face_distance,many_faces, reference_face_position
 from dotenv import load_dotenv
@@ -30,10 +31,11 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )   
 
-# Assuming FaceSwapper, FaceEnhancer, and FaceAnalyzer are your class names
-face_swapper = None
-face_enhancer = None
-face_analyzer = None
+# Assuming FaceSwapper, FaceEnhancer, FaceAnalyzer and Image_Pipeline are the class names
+#face_swapper = None
+#face_enhancer = None
+#face_analyzer = None
+image_pipeline = None
 
 @app.on_event("startup")
 async def startup_event():
@@ -52,19 +54,24 @@ async def startup_event():
     #reference_face_position = 0
     
     execution_providers = os.getenv("PROVIDER")
-    global face_swapper, face_enhancer, face_analyzer
-    face_swapper = FaceSwapper(execution_providers)
-    face_enhancer = FaceEnhancer(execution_providers)
+    #global face_swapper, face_enhancer, face_analyzer
+    #face_swapper = FaceSwapper(execution_providers)
+    #face_enhancer = FaceEnhancer(execution_providers)
     #face_analyzer = FaceAnalyzer()
+    global image_pipeline
+    image_pipeline = ImagePipeline(execution_providers)
     
-def get_face_swapper():
-    return face_swapper
+#def get_face_swapper():
+#    return face_swapper
 
-def get_face_enhancer():
-    return face_enhancer
+#def get_face_enhancer():
+#    return face_enhancer
 
 #def get_face_analyzer():
 #    return face_analyzer
+
+def get_image_pipeline():
+    return image_pipeline
 
 @app.get("/")
 async def checkhealth():
@@ -72,9 +79,10 @@ async def checkhealth():
 
 @app.post("/swapp_img/")
 async def process_image(source_image: UploadFile = File(...), target_image: UploadFile = File(...), 
-                        swapper: FaceSwapper = Depends(get_face_swapper), 
-                        enhancer: FaceEnhancer = Depends(get_face_enhancer), 
-                        #analyzer: FaceAnalyzer = Depends(get_face_analyzer)
+                        #swapper: FaceSwapper = Depends(get_face_swapper), 
+                        #enhancer: FaceEnhancer = Depends(get_face_enhancer), 
+                        #analyzer: FaceAnalyzer = Depends(get_face_analyzer),
+                        image_pipeline = Depends(get_image_pipeline),
                         ):
     try:
         source_array = await read_image_as_array(source_image)
@@ -82,19 +90,20 @@ async def process_image(source_image: UploadFile = File(...), target_image: Uplo
     except Exception as e:
         raise HTTPException(status_code=500, detail="Something was wrong with the images")
     
-    many_faces = False
-    similar_face_distance = 0.85
-    reference_face_position = 0
+    #many_faces = False
+    #similar_face_distance = 0.85
+    #reference_face_position = 0
      
     try:   
-        # Now you can use swapper, enhancer, and analyzer directly
-        swapper_result = swapper.process_image(source_array, target_array)
-        enhancer_result = enhancer.process_image(None, swapper_result)
+        # Old version use swapper, enhancer, and analyzer directly
+        #swapper_result = swapper.process_image(source_array, target_array)
+        #enhancer_result = enhancer.process_image(None, swapper_result)
+        pipeline_result = image_pipeline.process_1_image_default_face(source_array, target_array)
     except Exception as e:
         raise HTTPException(status_code=500, detail="Something was wrong with the processing")
     
     # Convert from BGR to RGB
-    result = enhancer_result[:, :, ::-1]  
+    result = pipeline_result[:, :, ::-1]  
 
     # Convertir el array en una imagen
     image = Image.fromarray(result)
