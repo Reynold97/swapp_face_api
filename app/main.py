@@ -123,7 +123,7 @@ async def process_image(model: UploadFile = File(...),
     # Return image as a stream
     return StreamingResponse(byte_io, media_type="image/png")
     
-@serve.deployment(num_replicas = 5)
+@serve.deployment(num_replicas = 4)
 @serve.ingress(app)
 class FastAPIWrapper:
     pass
