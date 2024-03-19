@@ -80,8 +80,10 @@ async def checkhealth():
     return Response(status_code=200)
 
 @app.post("/swapp_face/")
-async def process_image(model: UploadFile = File(...), face: UploadFile = File(...),
-                        watermark: Optional[bool] = Form(...), vignette: Optional[bool] = Form(...), 
+async def process_image(model: UploadFile = File(...), 
+                        face: UploadFile = File(...),
+                        watermark: Optional[bool] = Form(None), 
+                        vignette: Optional[bool] = Form(None),  
                         #swapper: FaceSwapper = Depends(get_face_swapper), 
                         #enhancer: FaceEnhancer = Depends(get_face_enhancer), 
                         #analyzer: FaceAnalyzer = Depends(get_face_analyzer),
