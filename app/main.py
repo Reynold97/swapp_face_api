@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Response
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Response, Form
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.pipe.components.analyzer import FaceAnalyzer
@@ -7,6 +7,7 @@ from src.pipe.components.enhancer import FaceEnhancer
 from src.pipe.pipeline import ImagePipeline
 from src.utils import conditional_download, resolve_relative_path, read_image_as_array, suggest_execution_providers
 from src.globals import similar_face_distance,many_faces, reference_face_position
+from typing import Optional
 from dotenv import load_dotenv
 import os
 from PIL import Image
@@ -78,16 +79,17 @@ def get_image_pipeline():
 async def checkhealth():
     return Response(status_code=200)
 
-@app.post("/swapp_img/")
-async def process_image(source_image: UploadFile = File(...), target_image: UploadFile = File(...), 
+@app.post("/swapp_face/")
+async def process_image(model: UploadFile = File(...), face: UploadFile = File(...),
+                        watermark: Optional[bool] = Form(...), vignette: Optional[bool] = Form(...), 
                         #swapper: FaceSwapper = Depends(get_face_swapper), 
                         #enhancer: FaceEnhancer = Depends(get_face_enhancer), 
                         #analyzer: FaceAnalyzer = Depends(get_face_analyzer),
                         image_pipeline = Depends(get_image_pipeline),
                         ):
     try:
-        source_array = await read_image_as_array(source_image)
-        target_array = await read_image_as_array(target_image)
+        source_array = await read_image_as_array(face)
+        target_array = await read_image_as_array(model)
     except Exception as e:
         raise HTTPException(status_code=500, detail="Something was wrong with the images")
     
