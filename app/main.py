@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 import os
 from PIL import Image
 import io
+import ray
+from ray import serve
 
 app = FastAPI(title="Image Processing Service")
 load_dotenv(".env")
@@ -121,3 +123,11 @@ async def process_image(model: UploadFile = File(...),
     # Return image as a stream
     return StreamingResponse(byte_io, media_type="image/png")
     
+@serve.deployment(num_replicas = 5)
+@serve.ingress(app)
+class FastAPIWrapper:
+    pass
+
+ray_app = FastAPIWrapper.bind()
+
+#serve.run(FastAPIWrapper.bind(), route_prefix="/")
