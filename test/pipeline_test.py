@@ -25,7 +25,7 @@ class FaceAnalyzer(Processor):
     def load_model(self) -> Any:
         with threading.Lock():
             if self.model is None:
-                self.model = insightface.app.FaceAnalysis(name='buffalo_l', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'], provider_options = ['CUDAExecutionProvider', 'CPUExecutionProvider'])
+                self.model = insightface.app.FaceAnalysis(name='buffalo_l', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
                 self.model.prepare(ctx_id=0)
         return self.model
 
