@@ -61,7 +61,7 @@ async def startup_event():
     #global face_swapper, face_enhancer, face_analyzer
     #face_swapper = FaceSwapper(execution_providers)
     #face_enhancer = FaceEnhancer(execution_providers)
-    #face_analyzer = FaceAnalyzer()
+    #face_analyzer = FaceAnalyzer(execution_providers)
     global image_pipeline
     image_pipeline = ImagePipeline(execution_providers)
     

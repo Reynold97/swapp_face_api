@@ -10,11 +10,12 @@
             "request": "launch",
             "module": "uvicorn",
             "args": [
-                "app.main:app",
+                "test.pipeline_test:app",
                 "--reload"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
+            "justMyCode": false,
             "jinja": true
         }
     ]
