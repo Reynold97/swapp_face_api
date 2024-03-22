@@ -49,6 +49,13 @@ load_dotenv(".env")
 
 @app.on_event("startup")
 async def startup_event():
+    #download the models
+    try:
+        download_directory_path = resolve_relative_path('../models')
+        conditional_download(download_directory_path, ["https://huggingface.co/Reynold97/swapp_models/resolve/main/inswapper_128.onnx"])
+        conditional_download(download_directory_path, ["https://huggingface.co/Reynold97/swapp_models/resolve/main/GFPGANv1.4.pth"])
+    except Exception as e:
+        print(f"Could not download the base models: {str(e)}")
     
     providers_str = os.getenv('PROVIDERS', 'CPUExecutionProvider')  # Defaulting to CPUExecutionProvider if not set
     execution_providers = providers_str.split(',')
@@ -82,3 +89,13 @@ async def process_image(model: UploadFile = File(...),
     
     return Response(source_face)
     
+    
+"""
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 
+'CUDAExecutionProvider': {'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 
+'tunable_op_tuning_enable': '0', 'device_id': '0', 'has_user_compute_stream': '0', 
+'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 
+'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 
+'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 
+'cudnn_conv_use_max_workspace': '1', 'tunable_op_enable': '0'}}
+"""

@@ -14,6 +14,7 @@ from PIL import Image
 import io
 import ray
 from ray import serve
+from pyngrok import ngrok
 
 app = FastAPI(title="Image Processing Service")
 load_dotenv(".env")
@@ -64,6 +65,9 @@ async def startup_event():
     #face_analyzer = FaceAnalyzer(execution_providers)
     global image_pipeline
     image_pipeline = ImagePipeline(execution_providers)
+    
+    #public_url = ngrok.connect("8000").public_url
+    #print(f"ngrok tunnel \"{public_url}\" -> \"http://localhost:8000\"")
     
 #def get_face_swapper():
 #    return face_swapper
