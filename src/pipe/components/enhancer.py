@@ -4,7 +4,6 @@ import threading
 from gfpgan.utils import GFPGANer
 from insightface.app.common import Face
 
-import src.globals
 from src.pipe.components.processor import Processor
 from src.typing import Frame
 

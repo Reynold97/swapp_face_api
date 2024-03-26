@@ -28,3 +28,4 @@ python-multipart
 httpx
 python-dotenv
 gunicorn
+pyngrok

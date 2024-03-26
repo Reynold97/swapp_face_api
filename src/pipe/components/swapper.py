@@ -5,7 +5,6 @@ import insightface
 from insightface.app.common import Face
 
 from src.pipe.components.processor import Processor
-import src.globals
 from src.typing import Frame
 
 

@@ -6,7 +6,6 @@ import insightface
 from insightface.app.common import Face
 
 from src.typing import Frame
-import src.globals
 from src.pipe.components.processor import Processor
 
 
@@ -37,12 +36,12 @@ class FaceAnalyzer(Processor):
         except ValueError:
             return None
 
-    def find_similar_face(self, frame: Frame, reference_face: Face) -> Optional[Face]:
+    def find_similar_face(self, frame: Frame, reference_face: Face, similar_face_distance: float) -> Optional[Face]:
         many_faces = self.get_many_faces(frame)
         if many_faces:
             for face in many_faces:
                 if hasattr(face, 'normed_embedding') and hasattr(reference_face, 'normed_embedding'):
                     distance = numpy.sum(numpy.square(face.normed_embedding - reference_face.normed_embedding))
-                    if distance < src.globals.similar_face_distance:
+                    if distance < similar_face_distance:
                         return face
         return None
