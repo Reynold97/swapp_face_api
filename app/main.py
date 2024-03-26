@@ -58,8 +58,8 @@ async def startup_event():
         print(f"Can't initialize the pipeline: {str(e)}")
         raise Exception(e)
     
-    public_url = ngrok.connect("8000").public_url
-    print(f"ngrok tunnel \"{public_url}\" -> \"http://localhost:8000\"")
+    #public_url = ngrok.connect("8000").public_url
+    #print(f"ngrok tunnel \"{public_url}\" -> \"http://localhost:8000\"")
     
 def get_image_pipeline():
     return image_pipeline
