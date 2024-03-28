@@ -11,10 +11,12 @@ from dotenv import load_dotenv
 import os
 from PIL import Image
 import io
+from io import BytesIO
 import ray
 from ray import serve
 from pyngrok import ngrok
 import timeit
+import cv2
 
 app = FastAPI(title="Image Processing Service")
 load_dotenv(".env")
@@ -88,21 +90,30 @@ async def process_image(model: UploadFile = File(...),
         raise HTTPException(status_code=500, detail=f"Something was wrong with pipeline inference: {str(e)}")
     end_time = timeit.default_timer()
     execution_time = end_time - start_time 
-    print(f"Pipeline Inference: {execution_time} ms")
+    print(f"Pipeline Inference: {execution_time} s")
     
     # Convert from BGR to RGB
-    result = pipeline_result[:, :, ::-1]  
+    #result = pipeline_result[:, :, ::-1]  
 
     # Convertir el array en una imagen
-    image = Image.fromarray(result)
+    #image = Image.fromarray(result)
         
     # Convert PIL Image to a byte stream (in memory)
-    byte_io = io.BytesIO()
-    image.save(byte_io, format="PNG")
-    byte_io.seek(0)  # Go back to the start of the bytes stream
+    #byte_io = io.BytesIO()
+    #image.save(byte_io, format="PNG")
+    #byte_io.seek(0)  # Go back to the start of the bytes stream
     
     # Return image as a stream
-    return StreamingResponse(byte_io, media_type="image/png")
+    #return StreamingResponse(byte_io, media_type="image/png")    
+         
+    # Direct encoding to PNG using OpenCV
+    success, encoded_image = cv2.imencode(".png", pipeline_result)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to encode the processed image")        
+    
+    return StreamingResponse(BytesIO(encoded_image), media_type="image/png")
+
+   
     
 @serve.deployment()
 @serve.ingress(app)
