@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Response, Form
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.pipe.components.analyzer import FaceAnalyzer
 from src.pipe.components.swapper import FaceSwapper
@@ -17,6 +17,8 @@ from ray import serve
 from pyngrok import ngrok
 import timeit
 import cv2
+import asyncio
+import numpy as np
 
 app = FastAPI(title="Image Processing Service")
 load_dotenv(".env")
@@ -111,8 +113,10 @@ async def process_image(model: UploadFile = File(...),
     if not success:
         raise HTTPException(status_code=500, detail="Failed to encode the processed image")        
     
-    return StreamingResponse(BytesIO(encoded_image), media_type="image/png")
-
+    #return StreamingResponse(BytesIO(encoded_image), media_type="image/png")
+    # Convert encoded image to bytes and return it as a PNG response
+    encoded_image_bytes = encoded_image.tobytes()
+    return Response(content=encoded_image_bytes, media_type="image/png")
    
     
 @serve.deployment()
