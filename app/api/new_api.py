@@ -1,28 +1,59 @@
+import yaml
 import ray
 from ray import serve
 from fastapi import FastAPI, Request, Form, UploadFile
-from starlette.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse
+from contextlib import asynccontextmanager
 import cv2
 import numpy as np
 from io import BytesIO
+from ..pipe.components.analyzer import FaceAnalyzer
+from ..pipe.components.enhancer import FaceEnhancer
+from ..pipe.components.swapper import FaceSwapper
+from ..services.gcp_bucket_manager import GCPImageManager
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load the GCP Bucket config
+    # Load configuration from YAML
+    with open('...app/configs/config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
 
-@serve.deployment
+    # Extract GCPImageManager init_args from config
+    gcp_image_manager_config = None
+    for app in config['applications']:
+        if app['name'] == 'SwapFaceAPI':
+            for deployment in app['deployments']:
+                if deployment['name'] == 'GCPImageManager':
+                    gcp_image_manager_config = deployment['init_args']
+
+    if gcp_image_manager_config is None:
+        raise ValueError("GCPImageManager configuration not found in config.yaml")
+    
+    # Store the config in the app's state for later access
+    app.state.gcp_image_manager_config = gcp_image_manager_config
+    
+    yield
+    # Clean up and release the resources   
+    del gcp_image_manager_config
+
+app = FastAPI(lifespan=lifespan)
+
+@serve.deployment()
 @serve.ingress(app)
-class APIGateway:
-    def __init__(self, analyzer_handle: serve.DeploymentHandle, swapper_handle: serve.DeploymentHandle, enhancer_handle: serve.DeploymentHandle, img_downloader: serve.DeploymentHandle):
+class APIIngress:
+    def __init__(self, analyzer_handle: serve.DeploymentHandle, swapper_handle: serve.DeploymentHandle, enhancer_handle: serve.DeploymentHandle, img_manager: serve.DeploymentHandle):
         self.analyzer_handle = analyzer_handle
         self.swapper_handle = swapper_handle
         self.enhancer_handle = enhancer_handle
-        self.img_downloader = img_downloader
+        self.img_manager = img_manager
 
     @app.post("/swap_url")
     async def swap_url(self, request: Request) -> JSONResponse:
         request_data = await request.json()
         model_filenames, face_filename = request_data["model_filenames"], request_data["face_filename"]
 
-        source = await self.img_downloader.download_image.remote(face_filename)
+        source = await self.img_manager.download_image.remote(face_filename)
         source_face = await self.analyzer_handle.extract_faces.remote(source)
 
         if source_face is None:
@@ -31,14 +62,14 @@ class APIGateway:
         urls = []
 
         for model_filename in model_filenames:
-            target = await self.img_downloader.download_image.remote(model_filename)
+            target = await self.img_manager.download_image.remote(model_filename)
             target_face = await self.analyzer_handle.extract_faces.remote(target)
 
             tmp = await self.swapper_handle.swap_face.remote(source_face, target_face, target)
             target_face = await self.analyzer_handle.extract_faces.remote(tmp)
             tmp = await self.enhancer_handle.enhance_face.remote(target_face, tmp)
 
-            url = await self.img_downloader.upload_image.remote(tmp)
+            url = await self.img_manager.upload_image.remote(tmp)
             urls.append(url)
 
         partial_success = False
@@ -79,5 +110,13 @@ class APIGateway:
         _, img_encoded = cv2.imencode('.png', image)
         return img_encoded.tobytes()
 
-# Run the Ray Serve deployment with FastAPI
-serve.run(APIGateway.bind(analyzer_handle, swapper_handle, enhancer_handle, img_downloader))
+gcp_image_manager_config = app.state.gcp_image_manager_config
+
+# Bind actors with configuration
+analyzer = FaceAnalyzer.bind()
+swapper = FaceSwapper.bind()
+enhancer = FaceEnhancer.bind()
+img_downloader = GCPImageManager.bind(*gcp_image_manager_config)
+
+# Bind API Gateway with actors
+app = APIIngress.bind(analyzer, swapper, enhancer, img_downloader)

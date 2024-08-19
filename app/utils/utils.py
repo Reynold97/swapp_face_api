@@ -11,13 +11,13 @@ Face = namedtuple('Face', ['kps', 'embedding'])
 # Define Frame, background image
 Frame = numpy.ndarray[Any, Any]
 
-def conditional_download(url: str, root_folder: str = './.assets') -> str:
+def conditional_download(url: str, root_folder: str = '...models') -> str:
     """
     Downloads a file from the given URL if it does not already exist in the specified folder.
     
     Args:
         url (str): The URL of the file to download.
-        root_folder (str, optional): The folder to save the downloaded file. Defaults to './.assets'.
+        root_folder (str, optional): The folder to save the downloaded file. Defaults to '...models'.
     
     Returns:
         str: The path to the downloaded file.

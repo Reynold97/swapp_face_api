@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 
 
 @serve.deployment()
-class GCPBucketManager:
+class GCPImageManager:
     """
     Manages the upload and download of images to/from a GCP bucket.
     
