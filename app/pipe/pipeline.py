@@ -1,10 +1,9 @@
 import numpy as np
 from typing import List
 
-from src.pipe.components.analyzer import FaceAnalyzer
-from src.pipe.components.swapper import FaceSwapper
-from src.pipe.components.enhancer import FaceEnhancer
-from src.typing import Frame
+from app.pipe.components.analyzer import FaceAnalyzer
+from app.pipe.components.swapper import FaceSwapper
+from app.pipe.components.enhancer import FaceEnhancer
 
 class ImagePipeline:
     def __init__(self, providers: List[str]):

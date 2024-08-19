@@ -1,11 +1,11 @@
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Response, Form
 from fastapi.responses import JSONResponse, Response, StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from src.pipe.components.analyzer import FaceAnalyzer
-from src.pipe.components.swapper import FaceSwapper
-from src.pipe.components.enhancer import FaceEnhancer
-from src.pipe.pipeline import ImagePipeline
-from src.utils import conditional_download, resolve_relative_path, read_image_as_array, suggest_execution_providers
+from app.pipe.components.analyzer import FaceAnalyzer
+from app.pipe.components.swapper import FaceSwapper
+from app.pipe.components.enhancer import FaceEnhancer
+from app.pipe.pipeline import ImagePipeline
+from app.utils.utils import conditional_download, resolve_relative_path, read_image_as_array, suggest_execution_providers
 from typing import Optional
 from dotenv import load_dotenv
 import os
