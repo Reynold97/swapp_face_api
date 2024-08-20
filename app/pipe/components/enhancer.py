@@ -3,7 +3,7 @@ import cupy as cp
 import numpy as np
 import onnxruntime
 from ray import serve
-from ...utils.utils import conditional_download
+from app.utils.utils import conditional_download
 
 
 ################################

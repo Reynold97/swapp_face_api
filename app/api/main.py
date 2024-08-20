@@ -1,127 +1,172 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Response, Form
-from fastapi.responses import JSONResponse, Response, StreamingResponse, FileResponse
-from fastapi.middleware.cors import CORSMiddleware
-from app.pipe.components.analyzer import FaceAnalyzer
-from app.pipe.components.swapper import FaceSwapper
-from app.pipe.components.enhancer import FaceEnhancer
-from app.pipe.pipeline import ImagePipeline
-from app.utils.utils import conditional_download, resolve_relative_path, read_image_as_array, suggest_execution_providers
-from typing import Optional
-from dotenv import load_dotenv
-import os
-from PIL import Image
-import io
-from io import BytesIO
-import ray
+import yaml
 from ray import serve
-from pyngrok import ngrok
-import timeit
+from ray.serve.handle import DeploymentHandle
+from fastapi import FastAPI, Request, Form, UploadFile
+from fastapi.responses import StreamingResponse, JSONResponse
+from contextlib import asynccontextmanager
 import cv2
-import asyncio
 import numpy as np
+from io import BytesIO
+from app.pipe.components.analyzer import FaceAnalyzer
+from app.pipe.components.enhancer import FaceEnhancer
+from app.pipe.components.swapper import FaceSwapper
+from app.services.gcp_bucket_manager import GCPImageManager
+from app.utils.utils import conditional_download
 
-app = FastAPI(title="Image Processing Service")
-load_dotenv(".env")
+@asynccontextmanager
+async def lifespan(app: FastAPI): 
+    # Load the pipeline models
+    conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/inswapper_128_fp16.onnx')
+    conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/arcface_w600k_r50_fp16.onnx')
+    conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/retinaface_10g_fp16.onnx')
+    conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/gfpgan_1.4.onnx')
+    
+    yield
+    
+app = FastAPI(lifespan=lifespan)
 
-# Allowed origins for CORS (Cross-Origin Resource Sharing)
-allowed_origins = [
-    "*",  # Allows all origins
-    # Uncomment the line below to restrict to a specific origin
-    # "https://api.storyface.ai"
-]
-
-# Apply CORS middleware to allow cross-origin requests
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all HTTP methods
-    allow_headers=["*"],  # Allows all headers
-)   
-
-image_pipeline = None
-
-@app.on_event("startup")
-async def startup_event():
-    #download the models
-    try:
-        download_directory_path = resolve_relative_path('../models')
-        conditional_download(download_directory_path, ["https://huggingface.co/Reynold97/swapp_models/resolve/main/inswapper_128.onnx"])
-        conditional_download(download_directory_path, ["https://huggingface.co/Reynold97/swapp_models/resolve/main/GFPGANv1.4.pth"])
-    except Exception as e:
-        print(f"Can't download the base models: {str(e)}")
-        raise Exception(e)
-    
-    providers_str = os.getenv('PROVIDERS', 'CPUExecutionProvider')  # Defaulting to CPUExecutionProvider if not set
-    execution_providers = providers_str.split(',')
-    
-    try:
-        global image_pipeline
-        image_pipeline = ImagePipeline(execution_providers)
-    except Exception as e:
-        print(f"Can't initialize the pipeline: {str(e)}")
-        raise Exception(e)
-    
-    #public_url = ngrok.connect("8000").public_url
-    #print(f"ngrok tunnel \"{public_url}\" -> \"http://localhost:8000\"")
-    
-def get_image_pipeline():
-    return image_pipeline
-
-@app.get("/")
-async def checkhealth():
-    return Response(status_code=200)
-
-@app.post("/swapp_face/")
-async def process_image(model: UploadFile = File(...), 
-                        face: UploadFile = File(...),
-                        watermark: Optional[bool] = Form(None), 
-                        vignette: Optional[bool] = Form(None),  
-                        image_pipeline = Depends(get_image_pipeline),
-                        ):
-    try:
-        source_array = await read_image_as_array(face)
-        target_array = await read_image_as_array(model)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Something was wrong with the input images: {str(e)}")
-    
-    start_time = timeit.default_timer() 
-    try:         
-        pipeline_result = image_pipeline.process_1_image_default_face(source_array, target_array)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Something was wrong with pipeline inference: {str(e)}")
-    end_time = timeit.default_timer()
-    execution_time = end_time - start_time 
-    print(f"Pipeline Inference: {execution_time} s")
-    
-    # Convert from BGR to RGB
-    #result = pipeline_result[:, :, ::-1]  
-
-    # Convertir el array en una imagen
-    #image = Image.fromarray(result)
-        
-    # Convert PIL Image to a byte stream (in memory)
-    #byte_io = io.BytesIO()
-    #image.save(byte_io, format="PNG")
-    #byte_io.seek(0)  # Go back to the start of the bytes stream
-    
-    # Return image as a stream
-    #return StreamingResponse(byte_io, media_type="image/png")    
-         
-    # Direct encoding to PNG using OpenCV
-    success, encoded_image = cv2.imencode(".png", pipeline_result)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to encode the processed image")        
-    
-    #return StreamingResponse(BytesIO(encoded_image), media_type="image/png")
-    # Convert encoded image to bytes and return it as a PNG response
-    encoded_image_bytes = encoded_image.tobytes()
-    return Response(content=encoded_image_bytes, media_type="image/png")
-   
-    
 @serve.deployment()
 @serve.ingress(app)
-class FastAPIWrapper:
-    pass
+class APIIngress:
+    """
+    A API class that sevres as ingress to the ray service and handles the image processing pipeline including face analysis, 
+    swapping, and enhancement.
+    """
+    def __init__(self, analyzer_handle: DeploymentHandle, swapper_handle: DeploymentHandle, enhancer_handle: DeploymentHandle, img_manager: DeploymentHandle):
+        """
+        Initializes the ImagePipeline class with deployment handles for analyzer, swapper, enhancer, and image downloader.
+        
+        Args:
+            analyzer_handle (`DeploymentHandle`): The deployment handle for the FaceAnalyzer.
+            swapper_handle (`DeploymentHandle`): The deployment handle for the FaceSwapper.
+            enhancer_handle (`DeploymentHandle`): The deployment handle for the FaceEnhancer.
+            img_downloader (`DeploymentHandle`): The deployment handle for the image downloader.
+        """
+        self.analyzer_handle = analyzer_handle
+        self.swapper_handle = swapper_handle
+        self.enhancer_handle = enhancer_handle
+        self.img_manager = img_manager
 
-ray_app = FastAPIWrapper.bind()
+    @app.post("/swap_url")
+    async def swap_url(self, request: Request) -> JSONResponse:
+        """
+        Handles face swapping for images specified by URLs.
+        
+        Args:
+            request (`Request`): The incoming request containing model filenames and face filename.
+        
+        Returns:
+            `dict`: A dictionary containing the URLs of the processed images.
+        """
+        request_data = await request.json()
+        model_filenames, face_filename = request_data["model_filenames"], request_data["face_filename"]
+
+        source = await self.img_manager.download_image.remote(face_filename)
+        source_face = await self.analyzer_handle.extract_faces.remote(source)
+
+        if source_face is None:
+            return JSONResponse({"error": "Bad Request", "message": "No face detected in the provided `face_filename`."}, status_code=400)
+
+        urls = []
+
+        for model_filename in model_filenames:
+            target = await self.img_manager.download_image.remote(model_filename)
+            target_face = await self.analyzer_handle.extract_faces.remote(target)
+
+            tmp = await self.swapper_handle.swap_face.remote(source_face, target_face, target)
+            target_face = await self.analyzer_handle.extract_faces.remote(tmp)
+            tmp = await self.enhancer_handle.enhance_face.remote(target_face, tmp)
+
+            url = await self.img_manager.upload_image.remote(tmp)
+            urls.append(url)
+
+        partial_success = False
+        for i, url in enumerate(urls):
+            if urls[i] is None:
+                partial_success = True
+
+        return JSONResponse({"urls": urls}, status_code=200 if not partial_success else 206)
+
+    @app.post("/swap_img")
+    async def swap_img(self, model: UploadFile, face: UploadFile) -> StreamingResponse:
+        """
+        Handles face swapping for uploaded images.
+        
+        Args:
+            request (`Request`): The incoming request containing the model and face images.
+        
+        Returns:
+            `StreamingResponse`: The response containing the processed image.
+        """
+        source = self.__load_image(await face.read())
+        target = self.__load_image(await model.read())
+
+        source_face = await self.analyzer_handle.extract_faces.remote(source)
+        if source_face is None:
+            return JSONResponse({"error": "Bad Request", "message": "No face detected in the provided `face`."}, status_code=400)
+
+        target_face = await self.analyzer_handle.extract_faces.remote(target)
+        if target_face is None:
+            return JSONResponse({"error": "Bad Request", "message": "No face detected in the provided `model`."}, status_code=400)
+
+        tmp = await self.swapper_handle.swap_face.remote(source_face, target_face, target)
+        target_face = await self.analyzer_handle.extract_faces.remote(tmp)
+        tmp = await self.enhancer_handle.enhance_face.remote(target_face, tmp)
+
+        result_img = await tmp
+        img_bytes = self.__result_image_bytes(result_img)
+
+        return StreamingResponse(BytesIO(img_bytes), media_type="image/png")
+
+    def __load_image(self, img_bytes: bytes) -> np.ndarray:
+        """
+        Loads an image from bytes.
+        
+        Args:
+            img_bytes (`bytes`): The image bytes.
+        
+        Returns:
+            `np.ndarray`: The loaded image.
+        """
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        return img
+
+    def __result_image_bytes(self, image: np.ndarray) -> bytes:
+        """
+        Encodes an image to bytes.
+        
+        Args:
+            image (`np.ndarray`): The image to encode.
+        
+        Returns:
+            `bytes`: The encoded image bytes.
+        """
+        _, img_encoded = cv2.imencode('.png', image)
+        return img_encoded.tobytes()
+
+
+# Load the GCP Bucket config
+# Load configuration from YAML
+with open('app/configs/serve_config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+
+# Extract GCPImageManager init_args from config
+gcp_image_manager_config = None
+for app in config['applications']:
+    if app['name'] == 'SwapFaceAPI':
+        for deployment in app['deployments']:
+            if deployment['name'] == 'GCPImageManager':
+                gcp_image_manager_config = deployment['init_args']
+
+if gcp_image_manager_config is None:
+    raise ValueError("GCPImageManager configuration not found in config.yaml")
+
+# Bind actors with configuration
+analyzer = FaceAnalyzer.bind()
+swapper = FaceSwapper.bind()
+enhancer = FaceEnhancer.bind()
+img_manager = GCPImageManager.bind(*gcp_image_manager_config)
+
+# Bind API Gateway with actors
+app = APIIngress.bind(analyzer, swapper, enhancer, img_manager)

@@ -5,7 +5,7 @@ import numpy as np
 import onnxruntime
 from ray import serve
 from onnx import numpy_helper
-from ...utils.utils import Face, conditional_download
+from app.utils.utils import Face, conditional_download
 
 
 ################################

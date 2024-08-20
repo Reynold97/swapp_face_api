@@ -1,26 +1,49 @@
-proxy_location: EveryNode
-
 http_options: 
   host: 0.0.0.0
-  port: 8001
-
-grpc_options:
-  port: 9000
-  grpc_servicer_functions: []
-
-logging_config:
-  encoding: TEXT
-  log_level: INFO
-  enable_access_log: true
+  port: 5001
 
 applications:
-- name: ray_api
-  route_prefix: /
-  import_path: app.main:ray_app
-  deployments:
-  - name: FastAPIWrapper
-    num_replicas: 4
-    max_concurrent_queries: 100
-    ray_actor_options:
-      num_cpus: 2
-      num_gpus: 0.25
+  - name: SwapFaceAPI
+    import_path: src.main:app
+    deployments:
+      - name: FaceAnalyzer
+        import_path: src.analyzer:FaceAnalyzer
+        num_replicas: 1
+        ray_actor_options:
+          num_cpus: 1
+          num_gpus: 0.1
+
+      - name: FaceSwapper
+        import_path: src.swapper:FaceSwapper
+        num_replicas: 3
+        ray_actor_options:
+          num_cpus: 1
+          num_gpus: 0.1
+
+      - name: FaceEnhancer
+        import_path: src.enhancer:FaceEnhancer
+        num_replicas: 4
+        ray_actor_options:
+          num_cpus: 1
+          num_gpus: 0.1
+
+      - name: GCPImageManager
+        import_path: src.image_manager:GCPImageManager
+        init_args:
+          - .assets/api.json
+          - tmp_faces
+        num_replicas: 6
+        ray_actor_options:
+          num_cpus: 1
+
+      - name: APIGateway
+        import_path: src.main:APIGateway
+        init_args:
+          - ray.get_actor("FaceAnalyzer")
+          - ray.get_actor("FaceSwapper")
+          - ray.get_actor("FaceEnhancer")
+          - ray.get_actor("GCPImageManager")
+        num_replicas: 2
+        route_prefix: "/"
+        ray_actor_options:
+          num_cpus: 1

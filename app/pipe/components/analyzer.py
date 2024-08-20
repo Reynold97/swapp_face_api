@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import onnxruntime
 from ray import serve
-from ...utils.utils import Face, conditional_download
+from app.utils.utils import Face, conditional_download
 
 
 ################################

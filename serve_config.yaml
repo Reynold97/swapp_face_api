@@ -1,0 +1,45 @@
+proxy_location: EveryNode
+
+http_options:
+
+  host: 0.0.0.0
+
+  port: 8000
+
+grpc_options:
+
+  port: 9000
+
+  grpc_servicer_functions: []
+
+logging_config:
+
+  encoding: JSON
+
+  log_level: INFO
+
+  logs_dir: null
+
+  enable_access_log: true
+
+applications:
+
+- name: swap-face
+
+  route_prefix: /
+
+  import_path: app.api.main:app
+
+  runtime_env: {}
+
+  deployments:
+
+  - name: FaceAnalyzer
+
+  - name: FaceSwapper
+
+  - name: FaceEnhancer
+
+  - name: GCPImageManager
+
+  - name: APIIngress
