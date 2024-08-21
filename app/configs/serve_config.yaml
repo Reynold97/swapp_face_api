@@ -18,13 +18,21 @@ logging_config:
 
 applications:
 
-- name: swap-face
+- name: SwapFaceAPI
 
   route_prefix: /
 
   import_path: app.api.main:app
 
-  runtime_env: {}
+  runtime_env: {
+    "pip": [
+      "opencv-python-headless",
+      "cupy-cuda11x",
+      "onnx",
+      "onnxruntime-gpu",
+      "python-multipart",
+    ]
+  }
 
   deployments:
 
@@ -53,7 +61,7 @@ applications:
       num_gpus: 0
     init_args:
           - app/configs/gcp_gcs_config.json
-          - tmp_faces
+          - anyscale_tmp_faces
 
   - name: APIIngress
     num_replicas: 1

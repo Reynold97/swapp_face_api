@@ -1,7 +1,7 @@
-name: swap-face-service
+name: SwapFaceAPI-Service
 
 applications:
-- name: swap-face
+- name: SwapFaceAPI
   route_prefix: /
   import_path: app.api.main:app
   runtime_env: {}  
@@ -35,7 +35,7 @@ applications:
       num_gpus: 0
     init_args:
           - app/configs/gcp_gcs_config.json
-          - tmp_faces
+          - anyscale_tmp_faces
 
 compute_config:
   head_node:
