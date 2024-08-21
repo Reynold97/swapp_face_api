@@ -1,49 +1,62 @@
-http_options: 
+proxy_location: EveryNode
+
+http_options:
+
   host: 0.0.0.0
-  port: 5001
+
+  port: 8000
+
+logging_config:
+
+  encoding: JSON
+
+  log_level: INFO
+
+  logs_dir: null
+
+  enable_access_log: true
 
 applications:
-  - name: SwapFaceAPI
-    import_path: src.main:app
-    deployments:
-      - name: FaceAnalyzer
-        import_path: src.analyzer:FaceAnalyzer
-        num_replicas: 1
-        ray_actor_options:
-          num_cpus: 1
-          num_gpus: 0.1
 
-      - name: FaceSwapper
-        import_path: src.swapper:FaceSwapper
-        num_replicas: 3
-        ray_actor_options:
-          num_cpus: 1
-          num_gpus: 0.1
+- name: swap-face
 
-      - name: FaceEnhancer
-        import_path: src.enhancer:FaceEnhancer
-        num_replicas: 4
-        ray_actor_options:
-          num_cpus: 1
-          num_gpus: 0.1
+  route_prefix: /
 
-      - name: GCPImageManager
-        import_path: src.image_manager:GCPImageManager
-        init_args:
-          - .assets/api.json
+  import_path: app.api.main:app
+
+  runtime_env: {}
+
+  deployments:
+
+  - name: FaceAnalyzer
+    num_replicas: 1
+    ray_actor_options:
+      num_cpus: 0.25
+      num_gpus: 0.1
+
+  - name: FaceSwapper
+    num_replicas: 1
+    ray_actor_options:
+      num_cpus: 0.25
+      num_gpus: 0.1
+
+  - name: FaceEnhancer
+    num_replicas: 1
+    ray_actor_options:
+      num_cpus: 0.25
+      num_gpus: 0.1
+
+  - name: GCPImageManager
+    num_replicas: 1
+    ray_actor_options:
+      num_cpus: 0.25
+      num_gpus: 0
+    init_args:
+          - app/configs/gcp_gcs_config.json
           - tmp_faces
-        num_replicas: 6
-        ray_actor_options:
-          num_cpus: 1
 
-      - name: APIGateway
-        import_path: src.main:APIGateway
-        init_args:
-          - ray.get_actor("FaceAnalyzer")
-          - ray.get_actor("FaceSwapper")
-          - ray.get_actor("FaceEnhancer")
-          - ray.get_actor("GCPImageManager")
-        num_replicas: 2
-        route_prefix: "/"
-        ray_actor_options:
-          num_cpus: 1
+  - name: APIIngress
+    num_replicas: 1
+    ray_actor_options:
+      num_cpus: 0.25
+      num_gpus: 0

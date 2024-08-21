@@ -161,3 +161,4 @@ cython_debug/
 
 *.pth
 *.onnx
+app/configs/gcp_gcs_config.json
