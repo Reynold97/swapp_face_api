@@ -34,7 +34,7 @@ applications:
       num_cpus: 0.25
       num_gpus: 0
     init_args:
-          - app/configs/gcp_gcs_config.json
+          - app/configs/anyscale_bucket_credentials.json
           - anyscale_tmp_faces
 
 compute_config:
@@ -54,7 +54,7 @@ excludes: # (Optional) List of files to exclude from being packaged up for the j
   - .env
   - .DS_Store
   - __pycache__
-  - app/configs/api.json
+  #- app/configs/anyscale_bucket_credentials.json
 
 query_auth_token_enabled: True # (Optional) Whether or not to gate this service behind an auth token.
 

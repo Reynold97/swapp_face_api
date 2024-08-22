@@ -161,4 +161,4 @@ cython_debug/
 
 *.pth
 *.onnx
-app/configs/gcp_gcs_config.json
+app/configs/anyscale_bucket_credentials.json
