@@ -4,6 +4,7 @@ import numpy as np
 from ray import serve
 from google.cloud import storage
 from google.oauth2.service_account import Credentials
+from google.api_core import exceptions
 
 
 @serve.deployment()
@@ -38,11 +39,15 @@ class GCPImageManager:
         """
         if image_array is None:
             return None
-        _, buffer = cv2.imencode('.jpg', image_array)
-        file_name = f"{uuid.uuid4()}.jpg"
-        blob = self.bucket.blob(file_name)
-        blob.upload_from_string(buffer.tobytes(), content_type='image/jpeg')
-        return file_name
+        try:
+            _, buffer = cv2.imencode('.jpg', image_array)
+            file_name = f"{uuid.uuid4()}.jpg"
+            blob = self.bucket.blob(file_name)
+            blob.upload_from_string(buffer.tobytes(), content_type='image/jpeg')
+            return file_name
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None
 
     def download_image(self, file_name):
         """
@@ -50,8 +55,15 @@ class GCPImageManager:
         
         :param file_name: The unique filename of the image to download.
         :return: Numpy array representing the downloaded image.
-        """
-        blob = self.bucket.blob(file_name)
-        image_bytes = blob.download_as_bytes()
-        image_array = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
-        return image_array
+        """        
+        try:
+            blob = self.bucket.blob(file_name)
+            image_bytes = blob.download_as_bytes()
+            image_array = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
+            return image_array
+        except exceptions.NotFound:
+            print(f"File not found: {file_name}")
+            return None
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None
