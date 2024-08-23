@@ -113,7 +113,7 @@ class APIIngress:
         target_face = await self.analyzer_handle.extract_faces.remote(tmp)
         tmp = await self.enhancer_handle.enhance_face.remote(target_face, tmp)
 
-        result_img = await tmp
+        result_img = tmp
         img_bytes = self.__result_image_bytes(result_img)
 
         return StreamingResponse(BytesIO(img_bytes), media_type="image/png")
