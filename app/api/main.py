@@ -1,3 +1,4 @@
+from typing import List
 import yaml
 from ray import serve
 from ray.serve.handle import DeploymentHandle
@@ -86,6 +87,47 @@ class APIIngress:
                 partial_success = True
 
         return JSONResponse({"urls": urls}, status_code=200 if not partial_success else 206)
+    
+    @app.post("/swap_url2")
+    async def swap_url(self, face_filename: str, model_filenames: List[str]) -> JSONResponse:
+        """
+        Handles face swapping for images specified by URLs.
+        
+        Args:
+            face_filename: str  The Face file name in the bucket
+            model_filenames: List[str]  List of the models file names in the bucket
+        
+        Returns:
+            `dict`: A dictionary containing the URLs of the processed images.
+        """
+        face_filename = face_filename
+        model_filenames= model_filenames
+        
+        source = await self.img_manager.download_image.remote(face_filename)
+        source_face = await self.analyzer_handle.extract_faces.remote(source)
+
+        if source_face is None:
+            return JSONResponse({"error": "Bad Request", "message": "No face detected in the provided `face_filename`."}, status_code=400)
+
+        urls = []
+
+        for model_filename in model_filenames:
+            target = await self.img_manager.download_image.remote(model_filename)
+            target_face = await self.analyzer_handle.extract_faces.remote(target)
+
+            tmp = await self.swapper_handle.swap_face.remote(source_face, target_face, target)
+            target_face = await self.analyzer_handle.extract_faces.remote(tmp)
+            tmp = await self.enhancer_handle.enhance_face.remote(target_face, tmp)
+
+            url = await self.img_manager.upload_image.remote(tmp)
+            urls.append(url)
+
+        partial_success = False
+        for i, url in enumerate(urls):
+            if urls[i] is None:
+                partial_success = True
+
+        return JSONResponse({"urls": urls}, status_code=200 if not partial_success else 206)
 
     @app.post("/swap_img")
     async def swap_img(self, model: UploadFile, face: UploadFile) -> StreamingResponse:
@@ -93,7 +135,8 @@ class APIIngress:
         Handles face swapping for uploaded images.
         
         Args:
-            request (`Request`): The incoming request containing the model and face images.
+            model: UploadFile  Model image file
+            face: UploadFile   Face image file
         
         Returns:
             `StreamingResponse`: The response containing the processed image.
