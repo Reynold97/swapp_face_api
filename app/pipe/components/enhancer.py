@@ -24,6 +24,8 @@ class FaceEnhancer:
             conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/gfpgan_1.4.onnx'),
             providers=['CUDAExecutionProvider']
         )
+        
+        print(f'ENHANCER is using the following provider(s): {self.enhancer.get_providers()}')
 
     def enhance_face(self, target_face, temp_frame: np.ndarray) -> np.ndarray:
         """

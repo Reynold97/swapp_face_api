@@ -40,10 +40,10 @@ class GCPImageManager:
         if image_array is None:
             return None
         try:
-            _, buffer = cv2.imencode('.png', image_array)
-            file_name = f"{uuid.uuid4()}.png"
+            _, buffer = cv2.imencode('.jpg', image_array)
+            file_name = f"{uuid.uuid4()}.jpg"
             blob = self.bucket.blob(file_name)
-            blob.upload_from_string(buffer.tobytes(), content_type='image/png')
+            blob.upload_from_string(buffer.tobytes(), content_type='image/jpeg')
             return file_name
         except Exception as e:
             print(f"An error occurred: {e}")

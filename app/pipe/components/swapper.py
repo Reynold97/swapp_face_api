@@ -29,6 +29,8 @@ class FaceSwapper:
         self.model_matrix = numpy_helper.to_array(onnx.load(
             conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/inswapper_128_fp16.onnx')
         ).graph.initializer[-1])
+        
+        print(f'SWAPPER is using the following provider(s): {self.swapper.get_providers()}')
 
     def swap_face(self, source_face: Face, target_face: Face, temp_frame: np.ndarray) -> np.ndarray:
         """
