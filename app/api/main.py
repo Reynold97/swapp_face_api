@@ -89,7 +89,7 @@ class APIIngress:
         return JSONResponse({"urls": urls}, status_code=200 if not partial_success else 206)
     
     @app.post("/swap_url2")
-    async def swap_url(self, face_filename: str, model_filenames: List[str]) -> JSONResponse:
+    async def swap_url2(self, face_filename: str, model_filenames: List[str]) -> JSONResponse:
         """
         Handles face swapping for images specified by URLs.
         
