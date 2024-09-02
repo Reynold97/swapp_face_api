@@ -22,7 +22,7 @@ class FaceEnhancer:
         """
         self.enhancer = onnxruntime.InferenceSession(
             conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/gfpgan_1.4.onnx'),
-            providers=['CUDAExecutionProvider','CPUExecutionProvider']
+            providers=['CUDAExecutionProvider','AzureExecutionProvider','CPUExecutionProvider']
         )
         
         print(f'ENHANCER is using the following provider(s): {self.enhancer.get_providers()}')
