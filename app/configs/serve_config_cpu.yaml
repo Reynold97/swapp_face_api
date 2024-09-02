@@ -1,0 +1,72 @@
+proxy_location: EveryNode
+
+http_options:
+
+  host: 0.0.0.0
+
+  port: 8000
+
+logging_config:
+
+  encoding: JSON
+
+  log_level: INFO
+
+  logs_dir: null
+
+  enable_access_log: true
+
+applications:
+
+- name: SwapFaceAPI
+
+  route_prefix: /
+
+  import_path: app.api.main:app
+
+  runtime_env: {
+    "pip": [
+      "opencv-python-headless",
+      "cupy-cuda11x",
+      "onnx==1.16.2",
+      "onnxruntime-gpu==1.19.0",
+      "python-multipart",
+    ]
+  }
+
+  deployments:
+
+  - name: APIIngress
+    num_replicas: 1
+    ray_actor_options:
+      num_cpus: 0.25
+      num_gpus: 0
+      
+  - name: FaceAnalyzer
+    num_replicas: 1
+    ray_actor_options:
+      num_cpus: 0.25
+      num_gpus: 0
+
+  - name: FaceSwapper
+    num_replicas: 1
+    ray_actor_options:
+      num_cpus: 0.25
+      num_gpus: 0
+
+  - name: FaceEnhancer
+    num_replicas: 1
+    ray_actor_options:
+      num_cpus: 0.25
+      num_gpus: 0
+
+  - name: GCPImageManager
+    num_replicas: 1
+    ray_actor_options:
+      num_cpus: 0.25
+      num_gpus: 0
+    init_args:
+          - app/configs/anyscale_bucket_credentials.json
+          - anyscale_tmp_faces
+
+  

@@ -24,7 +24,7 @@ class FaceSwapper:
         """
         self.swapper = onnxruntime.InferenceSession(
             conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/inswapper_128_fp16.onnx'),
-            providers=['CUDAExecutionProvider']
+            providers=['CUDAExecutionProvider','CPUExecutionProvider']
         )
         self.model_matrix = numpy_helper.to_array(onnx.load(
             conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/inswapper_128_fp16.onnx')
@@ -145,15 +145,23 @@ class FaceSwapper:
         inverse_crop_mask = cv2.warpAffine(crop_mask, inverse_matrix, temp_frame_size).clip(0, 1)
         inverse_crop_frame = cv2.warpAffine(crop_frame, inverse_matrix, temp_frame_size, borderMode=cv2.BORDER_REPLICATE)
 
-        temp_frame = cp.array(temp_frame)
-        inverse_crop_mask = cp.array(inverse_crop_mask)
-        inverse_crop_frame = cp.array(inverse_crop_frame)
+        if self.swapper.get_providers() == 'CUDAExecutionProvider':
+            temp_frame = cp.array(temp_frame)
+            inverse_crop_mask = cp.array(inverse_crop_mask)
+            inverse_crop_frame = cp.array(inverse_crop_frame)
+        else:
+            temp_frame = np.array(temp_frame)
+            inverse_crop_mask = np.array(inverse_crop_mask)
+            inverse_crop_frame = np.array(inverse_crop_frame)
 
         temp_frame[:, :, 0] = inverse_crop_mask * inverse_crop_frame[:, :, 0] + (1 - inverse_crop_mask) * temp_frame[:, :, 0]
         temp_frame[:, :, 1] = inverse_crop_mask * inverse_crop_frame[:, :, 1] + (1 - inverse_crop_mask) * temp_frame[:, :, 1]
         temp_frame[:, :, 2] = inverse_crop_mask * inverse_crop_frame[:, :, 2] + (1 - inverse_crop_mask) * temp_frame[:, :, 2]
 
-        paste_frame = cp.asnumpy(temp_frame)
+        if self.swapper.get_providers() == 'CUDAExecutionProvider':
+            paste_frame = cp.asnumpy(temp_frame)
+        else:
+            paste_frame = temp_frame
 
         return paste_frame
 

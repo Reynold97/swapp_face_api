@@ -21,7 +21,7 @@ class FaceAnalyzer:
         """
         self.recognizer = onnxruntime.InferenceSession(
             conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/arcface_w600k_r50_fp16.onnx'),
-            providers=['CUDAExecutionProvider']
+            providers=['CUDAExecutionProvider','CPUExecutionProvider']
         )
         self.detector = onnxruntime.InferenceSession(
             conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/retinaface_10g_fp16.onnx'),
