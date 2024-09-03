@@ -5,6 +5,10 @@ pip install cupy-cuda11x opencv-python-headless onnx onnxruntime python-multipar
 
 serve run app/configs/serve_config_cpu.yaml
 
+anyscale service deploy -f app/configs/service_config_cpu.yaml
+
+anyscale service terminate --name=SwapFaceAPI-Service-Prod
+
 locust -f app/test/locustfile.py
 
 Example url call cpu

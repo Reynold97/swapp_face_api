@@ -1,10 +1,40 @@
 name: SwapFaceAPI-Service-Prod
 
+image_uri: 'anyscale/ray:2.35.0-slim-py310'
+
+compute_config:
+  head_node:
+    instance_type: e2-highcpu-4
+
+  worker_nodes:
+  - instance_type: e2-standard-8
+    min_nodes: 1
+    max_nodes: 8
+    market_type: PREFER_SPOT # (Optional) Defaults to ON_DEMAND
+
+  enable_cross_zone_scaling: false # (Optional) Defaults to false.
+
+cloud: ANYSCALE_CLOUD_4
+
+query_auth_token_enabled: true
+
+logging_config: # (Optional) Configuration options for logging.
+  encoding: JSON # JSON or TEXT.
+  log_level: INFO
+  enable_access_log: true
+
 applications:
 - name: SwapFaceAPI
   route_prefix: /
   import_path: app.api.main:app
-  runtime_env: {}  
+  runtime_env: {
+    "pip": [
+      "opencv-python-headless",
+      "onnx",
+      "onnxruntime",
+      "python-multipart",
+    ]
+  }
 
   deployments:
   - name: APIIngress
@@ -88,18 +118,6 @@ applications:
     init_args:
           - app/configs/anyscale_bucket_credentials.json
           - anyscale_tmp_faces
-
-compute_config:
-  head_node:
-  instance_type: e2-highcpu-4
-
-  worker_nodes:
-  - instance_type: e2-standard-8
-    min_nodes: 0
-    max_nodes: 5
-    market_type: PREFER_SPOT # (Optional) Defaults to ON_DEMAND
-
-  enable_cross_zone_scaling: true # (Optional) Defaults to false.
   
 excludes: # (Optional) List of files to exclude from being packaged up for the job.
   - .git
@@ -108,17 +126,9 @@ excludes: # (Optional) List of files to exclude from being packaged up for the j
   - __pycache__
   #- app/configs/anyscale_bucket_credentials.json
 
-query_auth_token_enabled: True # (Optional) Whether or not to gate this service behind an auth token.
-
 http_options:
-  port: 8000
-  request_timeout_s: 60 # (Optional) Timeout for HTTP requests in seconds. Default is no timeout.
+  #request_timeout_s: 60 # (Optional) Timeout for HTTP requests in seconds. Default is no timeout.
   keep_alive_timeout_s: 60 # (Optional) Timeout for HTTP keep-alive connections in seconds. Default is 5 seconds.
-
-logging_config: # (Optional) Configuration options for logging.
-  encoding: JSON # JSON or TEXT.
-  log_level: INFO
-  enable_access_log: true
 
 ray_gcs_external_storage_config:
   enabled: false
