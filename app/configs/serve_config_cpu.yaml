@@ -28,14 +28,14 @@ applications:
   - name: APIIngress
     num_replicas: 1
     ray_actor_options:
-      num_cpus: 0.25
+      num_cpus: 0.15
       num_gpus: 0
     max_ongoing_requests: 200
       
   - name: FaceAnalyzer
     #num_replicas: 1
     ray_actor_options:
-      num_cpus: 0.5
+      num_cpus: 0.25
       num_gpus: 0
     max_ongoing_requests: 3
     autoscaling_config:
@@ -53,7 +53,7 @@ applications:
   - name: FaceSwapper
     #num_replicas: 1
     ray_actor_options:
-      num_cpus: 0.5
+      num_cpus: 1
       num_gpus: 0
     max_ongoing_requests: 3
     autoscaling_config:
@@ -71,7 +71,7 @@ applications:
   - name: FaceEnhancer
     #num_replicas: 1
     ray_actor_options:
-      num_cpus: 0.25
+      num_cpus: 1
       num_gpus: 0
     max_ongoing_requests: 3
     autoscaling_config:
