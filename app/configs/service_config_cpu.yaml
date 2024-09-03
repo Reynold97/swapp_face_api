@@ -1,4 +1,4 @@
-name: SwapFaceAPI-Service
+name: SwapFaceAPI-Service-Prod
 
 applications:
 - name: SwapFaceAPI
