@@ -5,6 +5,8 @@ pip install cupy-cuda11x opencv-python-headless onnx onnxruntime python-multipar
 
 serve run app/configs/serve_config_cpu.yaml
 
+serve run app/configs/serve_config_gpu.yaml
+
 anyscale service deploy -f app/configs/service_config_cpu.yaml
 
 anyscale service terminate --name=SwapFaceAPI-Service-Prod
@@ -13,14 +15,14 @@ locust -f app/test/locustfile.py
 
 Example url call cpu
 
-DOWNLOAD_IMAGE OK 210.7ms   4.4%
-EXTRACT_FACES OK 354.5ms    7.4%
-DOWNLOAD_IMAGE OK 63.7ms    1.34%
-EXTRACT_FACES OK 352.3ms    7.4%
-SWAP_FACE OK 1771.1ms       37%
-EXTRACT_FACES OK 275.1ms    5.8%
-ENHANCE_FACE OK 1518.4ms    32%
-Total time: OK 4764.7ms     95%
+- DOWNLOAD_IMAGE OK 210.7ms   4.4%
+- EXTRACT_FACES OK 354.5ms    7.4%
+- DOWNLOAD_IMAGE OK 63.7ms    1.34%
+- EXTRACT_FACES OK 352.3ms    7.4%
+- SWAP_FACE OK 1771.1ms       37%
+- EXTRACT_FACES OK 275.1ms    5.8%
+- ENHANCE_FACE OK 1518.4ms    32%
+- Total time: OK 4764.7ms     95%
 
 
 curl -X POST "http://localhost:8000/swap_url2?face_filename=Reynold_Oramas.jpg" \

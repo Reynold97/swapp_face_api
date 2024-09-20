@@ -191,7 +191,7 @@ class APIIngress:
 
 # Load the GCP Bucket config
 # Load configuration from YAML
-with open('app/configs/serve_config.yaml', 'r') as file:
+with open('app/configs/serve_config_gpu.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 # Extract GCPImageManager init_args from config
