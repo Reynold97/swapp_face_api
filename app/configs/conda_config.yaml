@@ -1,0 +1,14 @@
+name: cuda_onnx_env
+channels:
+  - conda-forge
+  - nvidia
+dependencies:
+  - python=3.10
+  - cudatoolkit=11.8
+  - cudnn=8.2
+  - pip
+  - pip:
+    - opencv-python-headless
+    - cupy-cuda11x
+    - onnxruntime-gpu==1.19.0
+    - python-multipart

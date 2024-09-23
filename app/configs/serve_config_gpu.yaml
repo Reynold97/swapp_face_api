@@ -15,17 +15,6 @@ applications:
 - name: SwapFaceAPI
   route_prefix: /
   import_path: app.api.main:app
-  runtime_env: {
-    "pip": [
-      "opencv-python-headless",
-      "cupy-cuda11x",
-      "onnx==1.16.2",
-      "onnxruntime-gpu==1.19.0",
-      "python-multipart",
-    ]
-  }
-
-  deployments:
 
   deployments:
   - name: APIIngress
