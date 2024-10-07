@@ -21,11 +21,11 @@ class FaceAnalyzer:
         """
         self.recognizer = onnxruntime.InferenceSession(
             conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/arcface_w600k_r50_fp16.onnx'),
-            providers=['CUDAExecutionProvider','AzureExecutionProvider','CPUExecutionProvider']
+            providers=['CUDAExecutionProvider']
         )
         self.detector = onnxruntime.InferenceSession(
             conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/retinaface_10g_fp16.onnx'),
-            providers=['CUDAExecutionProvider','AzureExecutionProvider','CPUExecutionProvider']
+            providers=['CUDAExecutionProvider']
         )
         
         print(f'RECOGNIZER and DETECTOR are using the following provider(s): {self.recognizer.get_providers()} and {self.detector.get_providers()}')

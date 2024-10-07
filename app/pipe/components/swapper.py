@@ -24,7 +24,7 @@ class FaceSwapper:
         """
         self.swapper = onnxruntime.InferenceSession(
             conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/inswapper_128_fp16.onnx'),
-            providers=['CUDAExecutionProvider','AzureExecutionProvider','CPUExecutionProvider']
+            providers=['CUDAExecutionProvider']
         )
         self.model_matrix = numpy_helper.to_array(onnx.load(
             conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/inswapper_128_fp16.onnx')

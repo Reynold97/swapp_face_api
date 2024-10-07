@@ -1,38 +1,75 @@
-# Start from the Anyscale CPU image
-FROM anyscale/ray:2.35.0-py310-cpu
+# Start with CUDA 11.8 devel image that includes cuDNN 8
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
-# Install system dependencies
+# Set environment variable to avoid tzdata prompt
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Python 3.10 and other necessary tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 \
+    python3-pip \
+    python3-venv \
     wget \
-    gnupg \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install CUDA 11.8
-RUN wget https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda-repo-ubuntu2204-11-8-local_11.8.0-520.61.05-1_amd64.deb \
-    && dpkg -i cuda-repo-ubuntu2204-11-8-local_11.8.0-520.61.05-1_amd64.deb \
-    && cp /var/cuda-repo-ubuntu2204-11-8-local/cuda-*-keyring.gpg /usr/share/keyrings/ \
-    && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y cuda-11-8 \
+    git \
+    sudo \
+    tzdata \
+    supervisor \
+    openssh-client \
+    openssh-server \
+    rsync \
+    zip \
+    unzip \
+    nfs-common \
+    curl \
     && rm -rf /var/lib/apt/lists/* \
-    && rm cuda-repo-ubuntu2204-11-8-local_11.8.0-520.61.05-1_amd64.deb
+    && apt-get clean
+
+# Create the `ray` user
+RUN useradd -ms /bin/bash -d /home/ray ray --uid 1000 --gid 100 \
+    && usermod -aG root ray \
+    && echo 'ray ALL=NOPASSWD: ALL' >> /etc/sudoers
+
+# Switch to the `ray` user.
+USER ray
+ENV HOME=/home/ray
+
+# Create a virtual environment
+RUN python3.10 -m venv --system-site-packages $HOME/virtualenv
+ENV PATH=$HOME/virtualenv/bin:$PATH
+ENV VIRTUAL_ENV=$HOME/virtualenv
+
+# Install Google Cloud SDK without using deprecated apt-key
+RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | \
+    sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
+    sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+RUN sudo apt-get update && sudo apt-get install -y google-cloud-cli
+
+# Create necessary directories
+RUN mkdir -p /tmp/ray && mkdir -p /tmp/supervisord
+
+# Copy requirements.txt and install dependencies
+COPY --chown=ray:100 requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install additional Python packages
+RUN pip install --no-cache-dir \
+    ray[serve]==2.37.0 \
+    anyscale \
+    'urllib3<1.27' \
+    Pillow \
+    awscli \
+    google-cloud-storage
 
 # Set CUDA environment variables
-ENV PATH /usr/local/cuda-11.8/bin:$PATH
-ENV LD_LIBRARY_PATH /usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH
+ENV CUDA_HOME="/usr/local/cuda"
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 
-# Install cuDNN 8.2 for CUDA 11.8
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/libcudnn8_8.2.4.15-1+cuda11.8_amd64.deb \
-    && dpkg -i libcudnn8_8.2.4.15-1+cuda11.8_amd64.deb \
-    && rm libcudnn8_8.2.4.15-1+cuda11.8_amd64.deb
+# Give ray user permissions to write to /tmp/workspace
+RUN sudo mkdir -p /tmp/workspace && sudo chmod a+rwx -R /tmp/workspace
 
-# Install Python packages
-RUN pip install --no-cache-dir \
-    opencv-python-headless \
-    cupy-cuda11x \
-    onnxruntime-gpu==1.19.0 \
-    python-multipart
-
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Command to run your application
+# No CMD or ENTRYPOINT to keep it flexible for Anyscale
