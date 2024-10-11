@@ -6,11 +6,11 @@ class UserBehavior(TaskSet):
     def swap_url2(self):
         # Define the query parameters
         params = {
-            "face_filename": "Reynold_Oramas.jpg"
+            "face_filename": "!1.jpg"
         }
         
         # Define the list of model filenames to send in the body
-        payload = ["samurai.png"]
+        payload = ["!2.png"]
         
         # Send the POST request to the /swap_url2 endpoint
         with self.client.post("/swap_url2", params=params, json=payload, catch_response=True) as response:
