@@ -1,4 +1,4 @@
-name: SwapFaceAPI-Service-Prod
+name: SwapFaceAPI-Service-Prod-CPU
 
 image_uri: 'anyscale/ray:2.35.0-slim-py310'
 
