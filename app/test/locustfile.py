@@ -4,6 +4,11 @@ class UserBehavior(TaskSet):
 
     @task
     def swap_url2(self):
+        # Define headers with Authorization token
+        headers = {
+            "Authorization": "Bearer ..."
+        }
+        
         # Define the query parameters
         params = {
             "face_filename": "!1.jpg"
@@ -13,7 +18,7 @@ class UserBehavior(TaskSet):
         payload = ["!2.png"]
         
         # Send the POST request to the /swap_url2 endpoint
-        with self.client.post("/swap_url2", params=params, json=payload, catch_response=True) as response:
+        with self.client.post("/swap_url2", params=params, json=payload, headers=headers, catch_response=True) as response:
             if response.status_code == 200:
                 data = response.json()
                 if "urls" in data:
@@ -29,5 +34,6 @@ class UserBehavior(TaskSet):
 class WebsiteUser(HttpUser):
     tasks = [UserBehavior]
     wait_time = between(1, 5)
-    host = "http://localhost:8000"  # Specify the base URL here
+    host = "..."  # Updated base URL
+
 
