@@ -258,14 +258,14 @@ If you have any questions, please feel free to reach me out at <b>shangchenzhou@
 
 demo = gr.Interface(
     inference, [
-        gr.inputs.Image(type="filepath", label="Input"),
-        gr.inputs.Checkbox(default=True, label="Background_Enhance"),
-        gr.inputs.Checkbox(default=True, label="Face_Upsample"),
-        gr.inputs.Number(default=2, label="Rescaling_Factor (up to 4)"),
+        gr.Image(type="filepath", label="Input"),
+        gr.Checkbox(value=True, label="Background_Enhance"),
+        gr.Checkbox(value=True, label="Face_Upsample"),
+        gr.Number(value=2, label="Rescaling_Factor (up to 4)"),
         gr.Slider(0, 1, value=0.5, step=0.01, label='Codeformer_Fidelity (0 for better quality, 1 for better identity)')
     ], [
-        gr.outputs.Image(type="numpy", label="Output"),
-        gr.outputs.File(label="Download the output")
+        gr.Image(type="numpy", label="Output"),
+        gr.File(label="Download the output")
     ],
     title=title,
     description=description,
@@ -279,5 +279,4 @@ demo = gr.Interface(
       ]
     )
 
-demo.queue(concurrency_count=2)
 demo.launch()
