@@ -2,7 +2,7 @@ import os
 import cv2
 import torch
 import numpy as np
-#from ray import serve
+from ray import serve
 from torchvision.transforms.functional import normalize
 from app.utils.utils import conditional_download, Face
 
@@ -18,7 +18,7 @@ from basicsr.utils.misc import get_device
 from facelib.utils.face_restoration_helper import FaceRestoreHelper
 from basicsr.utils.registry import ARCH_REGISTRY
 
-#@serve.deployment()
+@serve.deployment()
 class CodeFormerEnhancer:
     """
     A class used to enhance faces in a given frame using CodeFormer model.
@@ -188,13 +188,15 @@ if __name__ == '__main__':
     import os
     import sys
     import argparse
+    import numpy as np
+    from facelib.utils.face_restoration_helper import FaceRestoreHelper
     
     # Add paths for testing
     parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     if parent_dir not in sys.path:
         sys.path.append(parent_dir)
     
-    from app.pipe.components.analyzer import FaceAnalyzer
+    from app.utils.utils import Face
     
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input_path', type=str, required=True, help='Input image path')
@@ -210,18 +212,42 @@ if __name__ == '__main__':
     if img is None:
         print(f"Error: Cannot load image from {args.input_path}")
         sys.exit(1)
-        
-    # Initialize components
-    analyzer = FaceAnalyzer()
-    codeformer = CodeFormerEnhancer()
     
-    # Extract face
-    face = analyzer.extract_faces(img)
-    if face is None:
+    # Create temporary face helper for detection only
+    print("Detecting face...")
+    face_helper = FaceRestoreHelper(
+        1,  # Temporary upscale factor
+        face_size=512,
+        crop_ratio=(1, 1),
+        det_model='retinaface_resnet50',
+        save_ext='png',
+        use_parse=True,
+        device=get_device()
+    )
+    
+    face_helper.read_image(img)
+    num_det_faces = face_helper.get_face_landmarks_5(
+        only_center_face=False, resize=640, eye_dist_threshold=5
+    )
+    
+    if num_det_faces == 0:
         print("Error: No face detected in the image")
         sys.exit(1)
-        
-    # Enhance face
+    
+    print(f"Detected {num_det_faces} face(s)")
+    
+    # Create a Face namedtuple from the first detected face
+    kps = face_helper.all_landmarks_5[0]
+    # Create a dummy embedding (since CodeFormerEnhancer only uses the keypoints)
+    dummy_embedding = np.zeros(512, dtype=np.float32)
+    face = Face(kps=kps, embedding=dummy_embedding)
+    
+    # Initialize CodeFormerEnhancer
+    print("Initializing CodeFormerEnhancer...")
+    codeformer = CodeFormerEnhancer()
+    
+    # Enhance face using the CodeFormerEnhancer class
+    print(f"Enhancing face with fidelity_weight={args.fidelity_weight}...")
     enhanced_img = codeformer.enhance_face(
         face, img, 
         fidelity_weight=args.fidelity_weight,
