@@ -6,7 +6,7 @@ import torch
 import numpy as np
 from os import path as osp
 
-from .dist_util import master_only
+#from .dist_util import master_only
 
 
 IS_HIGH_VERSION = [int(m) for m in list(re.findall(r"^([0-9]+)\.([0-9]+)\.([0-9]+)([^0-9][a-zA-Z0-9]*)?(\+git.*)?$",\
@@ -30,46 +30,6 @@ def get_device(gpu_id=None):
         if torch.backends.mps.is_available():
             return torch.device('mps'+gpu_str)
     return torch.device('cuda'+gpu_str if torch.cuda.is_available() and torch.backends.cudnn.is_available() else 'cpu')
-
-
-def set_random_seed(seed):
-    """Set random seeds."""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-
-
-def get_time_str():
-    return time.strftime('%Y%m%d_%H%M%S', time.localtime())
-
-
-def mkdir_and_rename(path):
-    """mkdirs. If path exists, rename it with timestamp and create a new one.
-
-    Args:
-        path (str): Folder path.
-    """
-    if osp.exists(path):
-        new_name = path + '_archived_' + get_time_str()
-        print(f'Path already exists. Rename it to {new_name}', flush=True)
-        os.rename(path, new_name)
-    os.makedirs(path, exist_ok=True)
-
-
-@master_only
-def make_exp_dirs(opt):
-    """Make dirs for experiments."""
-    path_opt = opt['path'].copy()
-    if opt['is_train']:
-        mkdir_and_rename(path_opt.pop('experiments_root'))
-    else:
-        mkdir_and_rename(path_opt.pop('results_root'))
-    for key, path in path_opt.items():
-        if ('strict_load' not in key) and ('pretrain_network' not in key) and ('resume' not in key):
-            os.makedirs(path, exist_ok=True)
-
 
 def scandir(dir_path, suffix=None, recursive=False, full_path=False):
     """Scan a directory to find the interested files.
