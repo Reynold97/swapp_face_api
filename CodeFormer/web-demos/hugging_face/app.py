@@ -4,7 +4,7 @@ https://huggingface.co/spaces/sczhou/CodeFormer
 """
 
 import sys
-sys.path.append('MyCodeFormer')
+sys.path.append('CodeFormer')
 import os
 import cv2
 import torch
