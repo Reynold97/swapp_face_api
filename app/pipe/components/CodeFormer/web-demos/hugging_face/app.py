@@ -33,14 +33,14 @@ pretrain_model_url = {
     'realesrgan': 'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/RealESRGAN_x2plus.pth'
 }
 # download weights
-if not os.path.exists('CodeFormer/weights/CodeFormer/codeformer.pth'):
-    load_file_from_url(url=pretrain_model_url['codeformer'], model_dir='CodeFormer/weights/CodeFormer', progress=True, file_name=None)
-if not os.path.exists('CodeFormer/weights/facelib/detection_Resnet50_Final.pth'):
-    load_file_from_url(url=pretrain_model_url['detection'], model_dir='CodeFormer/weights/facelib', progress=True, file_name=None)
-if not os.path.exists('CodeFormer/weights/facelib/parsing_parsenet.pth'):
-    load_file_from_url(url=pretrain_model_url['parsing'], model_dir='CodeFormer/weights/facelib', progress=True, file_name=None)
-if not os.path.exists('CodeFormer/weights/realesrgan/RealESRGAN_x2plus.pth'):
-    load_file_from_url(url=pretrain_model_url['realesrgan'], model_dir='CodeFormer/weights/realesrgan', progress=True, file_name=None)
+if not os.path.exists('models/weights/CodeFormer/codeformer.pth'):
+    load_file_from_url(url=pretrain_model_url['codeformer'], model_dir='models/weights/CodeFormer', progress=True, file_name=None)
+if not os.path.exists('models/weights/facelib/detection_Resnet50_Final.pth'):
+    load_file_from_url(url=pretrain_model_url['detection'], model_dir='models/weights/facelib', progress=True, file_name=None)
+if not os.path.exists('models/weights/facelib/parsing_parsenet.pth'):
+    load_file_from_url(url=pretrain_model_url['parsing'], model_dir='models/weights/facelib', progress=True, file_name=None)
+if not os.path.exists('models/weights/realesrgan/RealESRGAN_x2plus.pth'):
+    load_file_from_url(url=pretrain_model_url['realesrgan'], model_dir='models/weights/realesrgan', progress=True, file_name=None)
 
 # download images
 torch.hub.download_url_to_file(
@@ -78,7 +78,7 @@ def set_realesrgan():
     )
     upsampler = RealESRGANer(
         scale=2,
-        model_path="CodeFormer/weights/realesrgan/RealESRGAN_x2plus.pth",
+        model_path="models/weights/realesrgan/RealESRGAN_x2plus.pth",
         model=model,
         tile=400,
         tile_pad=40,
@@ -97,7 +97,7 @@ codeformer_net = ARCH_REGISTRY.get("CodeFormer")(
     n_layers=9,
     connect_list=["32", "64", "128", "256"],
 ).to(device)
-ckpt_path = "CodeFormer/weights/CodeFormer/codeformer.pth"
+ckpt_path = "models/weights/CodeFormer/codeformer.pth"
 checkpoint = torch.load(ckpt_path)["params_ema"]
 codeformer_net.load_state_dict(checkpoint)
 codeformer_net.eval()
