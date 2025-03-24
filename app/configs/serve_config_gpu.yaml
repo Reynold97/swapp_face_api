@@ -93,6 +93,25 @@ applications:
       metrics_interval_s: 2
       look_back_period_s: 2
 
+  - name: CodeFormerEnhancer
+    #num_replicas: 1
+    ray_actor_options:
+      num_cpus: 0.1
+      num_gpus: 0.2
+      placement_group_bundles: gpu_bundle
+    max_ongoing_requests: 3
+    autoscaling_config:
+      target_ongoing_requests: 1
+      min_replicas: 1
+      initial_replicas: 1
+      max_replicas: 50
+      upscale_delay_s: 10
+      downscale_delay_s: 300
+      upscaling_factor: 1
+      downscaling_factor: 1
+      metrics_interval_s: 2
+      look_back_period_s: 2
+
   - name: GCPImageManager
     #num_replicas: 1
     ray_actor_options:

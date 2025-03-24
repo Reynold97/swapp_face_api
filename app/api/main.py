@@ -11,6 +11,7 @@ from io import BytesIO
 from app.pipe.components.analyzer import FaceAnalyzer
 from app.pipe.components.enhancer import FaceEnhancer
 from app.pipe.components.swapper import FaceSwapper
+from app.pipe.components.enhancer_codeformer import CodeFormerEnhancer
 from app.services.gcp_bucket_manager import GCPImageManager
 from app.utils.utils import conditional_download
 
@@ -21,6 +22,24 @@ async def lifespan(app: FastAPI):
     conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/arcface_w600k_r50_fp16.onnx')
     conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/retinaface_10g_fp16.onnx')
     conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/gfpgan_1.4.onnx')
+    #CodeFormer Models
+    # Download detection and parsing models if needed
+    conditional_download(
+        'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/detection_Resnet50_Final.pth',
+        'models/weights/facelib'
+    )
+    conditional_download(
+        'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/parsing_parsenet.pth',
+        'models/weights/facelib'
+    )
+    conditional_download(
+        'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/codeformer.pth',
+        'models/weights/CodeFormer'
+    )
+    conditional_download(
+        'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/RealESRGAN_x2plus.pth',
+        'models/weights/realesrgan'
+    )
     
     yield
     
@@ -33,7 +52,7 @@ class APIIngress:
     A API class that sevres as ingress to the ray service and handles the image processing pipeline including face analysis, 
     swapping, and enhancement.
     """
-    def __init__(self, analyzer_handle: DeploymentHandle, swapper_handle: DeploymentHandle, enhancer_handle: DeploymentHandle, img_manager: DeploymentHandle):
+    def __init__(self, analyzer_handle: DeploymentHandle, swapper_handle: DeploymentHandle, enhancer_handle: DeploymentHandle, codeformer_handle: DeploymentHandle, img_manager: DeploymentHandle):
         """
         Initializes the ImagePipeline class with deployment handles for analyzer, swapper, enhancer, and image downloader.
         
@@ -41,11 +60,13 @@ class APIIngress:
             analyzer_handle (`DeploymentHandle`): The deployment handle for the FaceAnalyzer.
             swapper_handle (`DeploymentHandle`): The deployment handle for the FaceSwapper.
             enhancer_handle (`DeploymentHandle`): The deployment handle for the FaceEnhancer.
+            codeformer_handle (`DeploymentHandle`): The deployment handle for the CodeFormerEnhancer.
             img_downloader (`DeploymentHandle`): The deployment handle for the image downloader.
         """
         self.analyzer_handle = analyzer_handle
         self.swapper_handle = swapper_handle
         self.enhancer_handle = enhancer_handle
+        self.codeformer_handle = codeformer_handle
         self.img_manager = img_manager
 
     @app.post("/swap_url")
@@ -160,6 +181,59 @@ class APIIngress:
         img_bytes = self.__result_image_bytes(result_img)
 
         return StreamingResponse(BytesIO(img_bytes), media_type="image/png")
+    
+    @app.post("/swap_url_codeformer")
+    async def swap_url_codeformer(self, face_filename: str, model_filenames: List[str], fidelity_weight: float = 0.5, background_enhance: bool = True, face_upsample: bool = True) -> JSONResponse:
+        """
+        Handles face swapping with CodeFormer enhancement for images specified by URLs.
+        
+        Args:
+            face_filename: str  The Face file name in the bucket
+            model_filenames: List[str]  List of the models file names in the bucket
+            fidelity_weight: float  Balance quality and fidelity (0: better quality, 1: better identity)
+            background_enhance: bool  Whether to enhance the background with RealESRGAN
+            face_upsample: bool  Whether to upsample the face with RealESRGAN
+        
+        Returns:
+            `dict`: A dictionary containing the URLs of the processed images.
+        """
+        source = await self.img_manager.download_image.remote(face_filename)
+        source_face = await self.analyzer_handle.extract_faces.remote(source)
+
+        if source_face is None:
+            return JSONResponse({"error": "Bad Request", "message": "No face detected in the provided `face_filename`."}, status_code=400)
+
+        urls = []
+
+        for model_filename in model_filenames:
+            target = await self.img_manager.download_image.remote(model_filename)
+            target_face = await self.analyzer_handle.extract_faces.remote(target)
+
+            # Swap face
+            tmp = await self.swapper_handle.swap_face.remote(source_face, target_face, target)
+            
+            # Extract face from swapped image
+            target_face = await self.analyzer_handle.extract_faces.remote(tmp)
+            
+            # Enhance with CodeFormer instead of regular enhancer
+            tmp = await self.codeformer_handle.enhance_face.remote(
+                target_face, 
+                tmp, 
+                fidelity_weight, 
+                background_enhance, 
+                face_upsample, 
+                2  # Fixed upscale factor of 2
+            )
+
+            url = await self.img_manager.upload_image.remote(tmp)
+            urls.append(url)
+
+        partial_success = False
+        for i, url in enumerate(urls):
+            if urls[i] is None:
+                partial_success = True
+
+        return JSONResponse({"urls": urls}, status_code=200 if not partial_success else 206)
 
     def __load_image(self, img_bytes: bytes) -> np.ndarray:
         """
@@ -209,7 +283,8 @@ if gcp_image_manager_config is None:
 analyzer = FaceAnalyzer.bind()
 swapper = FaceSwapper.bind()
 enhancer = FaceEnhancer.bind()
+codeformer = CodeFormerEnhancer.bind()
 img_manager = GCPImageManager.bind(*gcp_image_manager_config)
 
 # Bind API Gateway with actors
-app = APIIngress.bind(analyzer, swapper, enhancer, img_manager)
+app = APIIngress.bind(analyzer, swapper, enhancer, codeformer, img_manager)
