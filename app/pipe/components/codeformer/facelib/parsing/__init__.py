@@ -1,7 +1,7 @@
 import torch
 
-from facelib.utils import load_file_from_url
-from .bisenet import BiSeNet
+from app.pipe.components.codeformer.facelib.utils import load_file_from_url
+from app.pipe.components.codeformer.facelib.parsing.bisenet import BiSeNet
 from .parsenet import ParseNet
 
 

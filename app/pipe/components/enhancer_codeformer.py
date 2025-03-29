@@ -13,10 +13,10 @@ if codeformer_path not in sys.path:
     sys.path.append(codeformer_path)
 
 # Now import from CodeFormer
-from basicsr.utils import img2tensor, tensor2img
-from basicsr.utils.misc import get_device
-from facelib.utils.face_restoration_helper import FaceRestoreHelper
-from basicsr.utils.registry import ARCH_REGISTRY
+from app.pipe.components.codeformer.basicsr.utils import img2tensor, tensor2img
+from app.pipe.components.codeformer.basicsr.utils.misc import get_device
+from app.pipe.components.codeformer.facelib.utils.face_restoration_helper import FaceRestoreHelper
+from app.pipe.components.codeformer.basicsr.utils.registry import ARCH_REGISTRY
 
 @serve.deployment()
 class CodeFormerEnhancer:
@@ -67,8 +67,8 @@ class CodeFormerEnhancer:
         Returns:
             RealESRGANer or None: The upsampler instance or None if not available
         """
-        from basicsr.archs.rrdbnet_arch import RRDBNet
-        from basicsr.utils.realesrgan_utils import RealESRGANer
+        from app.pipe.components.codeformer.basicsr.archs.rrdbnet_arch import RRDBNet
+        from app.pipe.components.codeformer.basicsr.utils.realesrgan_utils import RealESRGANer
         
         use_half = False
         if torch.cuda.is_available():  # set False in CPU/MPS mode
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     import sys
     import argparse
     import numpy as np
-    from facelib.utils.face_restoration_helper import FaceRestoreHelper
+    from app.pipe.components.codeformer.facelib.utils.face_restoration_helper import FaceRestoreHelper
     
     # Add paths for testing
     parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

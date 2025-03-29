@@ -1,7 +1,7 @@
 
-from .img_util import crop_border, imfrombytes, img2tensor, imwrite, tensor2img
+from app.pipe.components.codeformer.basicsr.utils.img_util import crop_border, imfrombytes, img2tensor, imwrite, tensor2img
 
-from .misc import scandir, sizeof_fmt
+from app.pipe.components.codeformer.basicsr.utils.misc import scandir, sizeof_fmt
 
 __all__ = [
     # img_util.py
