@@ -3,10 +3,10 @@ import torch
 from torch import nn
 from copy import deepcopy
 
-from facelib.utils import load_file_from_url
-from facelib.utils import download_pretrained_models
+from app.pipe.components.codeformer.facelib.utils import load_file_from_url
+from app.pipe.components.codeformer.facelib.utils import download_pretrained_models
 
-from .retinaface.retinaface import RetinaFace
+from app.pipe.components.codeformer.facelib.detection.retinaface.retinaface import RetinaFace
 
 
 def init_detection_model(model_name, half=False, device='cuda'):

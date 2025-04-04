@@ -5,7 +5,7 @@ from torch.hub import download_url_to_file, get_dir
 from tqdm import tqdm
 from urllib.parse import urlparse
 
-from .misc import sizeof_fmt
+from app.pipe.components.codeformer.basicsr.utils.misc import sizeof_fmt
 
 
 def download_file_from_google_drive(file_id, save_path):
