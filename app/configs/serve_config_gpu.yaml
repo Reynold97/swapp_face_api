@@ -116,7 +116,7 @@ applications:
     #num_replicas: 1
     ray_actor_options:
       num_cpus: 0.2
-      num_gpus: 0.05
+      num_gpus: 0
       placement_group_bundles: gpu_bundle
     max_ongoing_requests: 5
     autoscaling_config:

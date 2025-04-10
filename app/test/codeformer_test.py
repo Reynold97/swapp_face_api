@@ -4,7 +4,7 @@ url = "http://localhost:8000/swap_url_codeformer"
 
 # Query parameters
 params = {
-    "face_filename": "calvo.jpg",
+    "face_filename": "!1.jpg",
     "fidelity_weight": 0.5,
     "background_enhance": True,
     "face_upsample": True
