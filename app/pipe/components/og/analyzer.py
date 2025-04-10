@@ -39,8 +39,7 @@ class FaceAnalyzer:
             index (`int`, optional): The index of the face to return. Defaults to `0`. If negative, returns all faces.
         
         Returns:
-            `Face` or `list[Face]`: A Face namedtuple containing keypoints and embedding of the face at the specified index,
-                                   or a list of all detected Face namedtuples if index is negative.
+            `Face`: A Face namedtuple containing keypoints and embedding of the face at the specified index.
         """
         if frame is None:
             return None
@@ -66,127 +65,6 @@ class FaceAnalyzer:
         if index < 0:
             return faces
         return faces[index]
-
-    def sort_faces_by_position(self, faces, direction='left_to_right'):
-        """
-        Sorts faces based on their horizontal position in the image.
-        
-        Args:
-            faces (`list[Face]`): List of Face namedtuples to sort.
-            direction (`str`, optional): Direction to sort, either 'left_to_right' or 'right_to_left'. 
-                                        Defaults to 'left_to_right'.
-        
-        Returns:
-            `list[Face]`: Sorted list of Face namedtuples.
-        """
-        if faces is None or len(faces) <= 1:
-            return faces
-            
-        # Calculate the centroid x-coordinate for each face
-        def get_face_x_centroid(face):
-            # Calculate the centroid based on keypoints
-            return np.mean(face.kps[:, 0])
-            
-        # Sort faces based on x-coordinate (horizontal position)
-        sorted_faces = sorted(faces, key=get_face_x_centroid)
-        
-        # Reverse the order if direction is right_to_left
-        if direction.lower() == 'right_to_left':
-            sorted_faces = sorted_faces[::-1]
-            
-        return sorted_faces
-
-    def calculate_similarity(self, face1_embedding, face2_embedding):
-        """
-        Calculates the cosine similarity between two face embeddings.
-        
-        Args:
-            face1_embedding (`np.ndarray`): The embedding of the first face.
-            face2_embedding (`np.ndarray`): The embedding of the second face.
-        
-        Returns:
-            `float`: The cosine similarity between the two face embeddings.
-                     Higher values indicate greater similarity.
-        """
-        # Normalize the embeddings
-        face1_norm = face1_embedding / np.linalg.norm(face1_embedding)
-        face2_norm = face2_embedding / np.linalg.norm(face2_embedding)
-        
-        # Calculate cosine similarity
-        similarity = np.dot(face1_norm, face2_norm)
-        return similarity
-
-    def find_most_similar_faces(self, source_faces, target_faces):
-        """
-        Finds the most similar target face for each source face based on embedding similarity.
-        
-        Args:
-            source_faces (`list[Face]`): List of source Face namedtuples.
-            target_faces (`list[Face]`): List of target Face namedtuples.
-        
-        Returns:
-            `list[tuple]`: List of tuples where each tuple contains 
-                          (source_face_index, target_face_index, similarity_score).
-                          Sorted by highest similarity first.
-        """
-        if not source_faces or not target_faces:
-            return []
-            
-        # Create a similarity matrix
-        similarities = []
-        for i, source_face in enumerate(source_faces):
-            for j, target_face in enumerate(target_faces):
-                similarity = self.calculate_similarity(source_face.embedding, target_face.embedding)
-                similarities.append((i, j, similarity))
-        
-        # Sort by similarity score (highest first)
-        similarities.sort(key=lambda x: x[2], reverse=True)
-        
-        return similarities
-
-    def match_faces_greedy(self, source_faces, target_faces):
-        """
-        Performs a greedy matching of source faces to target faces based on similarity.
-        Ensures each target face is used only once.
-        
-        Args:
-            source_faces (`list[Face]`): List of source Face namedtuples.
-            target_faces (`list[Face]`): List of target Face namedtuples.
-        
-        Returns:
-            `list[tuple]`: List of tuples where each tuple contains 
-                          (source_face_index, target_face_index, similarity_score).
-                          One match per source face, with highest overall similarity.
-        """
-        if not source_faces or not target_faces:
-            return []
-            
-        # Get all pairwise similarities
-        all_similarities = self.find_most_similar_faces(source_faces, target_faces)
-        
-        # Keep track of assigned target faces
-        assigned_targets = set()
-        matches = []
-        
-        # For each source face, find the most similar unassigned target face
-        for i in range(len(source_faces)):
-            best_match = None
-            best_similarity = -1
-            
-            for sim in all_similarities:
-                src_idx, tgt_idx, similarity = sim
-                
-                # Only consider matches for the current source face where the target is unassigned
-                if src_idx == i and tgt_idx not in assigned_targets and similarity > best_similarity:
-                    best_match = sim
-                    best_similarity = similarity
-            
-            # If we found a match, add it and mark the target as assigned
-            if best_match:
-                matches.append(best_match)
-                assigned_targets.add(best_match[1])
-        
-        return matches
 
     ###################################
     #####   AUXILIARY FUNCTIONS   #####

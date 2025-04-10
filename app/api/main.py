@@ -1,29 +1,40 @@
-from typing import List
+from typing import List, Optional, Union, Any
 import yaml
 from ray import serve
 from ray.serve.handle import DeploymentHandle
-from fastapi import FastAPI, Request, Form, UploadFile
+from fastapi import FastAPI, Request, UploadFile, File, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.encoders import jsonable_encoder
 from contextlib import asynccontextmanager
 import cv2
 import numpy as np
 from io import BytesIO
+
+from app.api.schemas import (
+    SwapUrlRequest, SwapImgRequest, ProcessingOptions, SuccessResponse, 
+    PartialSuccessResponse, ErrorResponse, FailedModel
+)
 from app.pipe.components.analyzer import FaceAnalyzer
 from app.pipe.components.enhancer import FaceEnhancer
 from app.pipe.components.swapper import FaceSwapper
 from app.pipe.components.enhancer_codeformer import CodeFormerEnhancer
+from app.pipe.swap_processor import SwapProcessor, NoSourceFaceError, NoTargetFaceError
 from app.services.gcp_bucket_manager import GCPImageManager
 from app.utils.utils import conditional_download
 
 @asynccontextmanager
 async def lifespan(app: FastAPI): 
+    """
+    Lifecycle manager for the FastAPI application.
+    Downloads required models during startup.
+    """
     # Load the pipeline models
     conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/inswapper_128_fp16.onnx')
     conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/arcface_w600k_r50_fp16.onnx')
     conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/retinaface_10g_fp16.onnx')
     conditional_download('https://huggingface.co/leandro-driguez/swap-faces/resolve/main/gfpgan_1.4.onnx')
-    #CodeFormer Models
-    # Download detection and parsing models if needed
+    
+    # CodeFormer Models
     conditional_download(
         'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/detection_Resnet50_Final.pth',
         'models/weights/facelib'
@@ -43,221 +54,271 @@ async def lifespan(app: FastAPI):
     
     yield
     
-app = FastAPI(lifespan=lifespan)
+# Create FastAPI app with metadata
+app = FastAPI(
+    title="Face Swap API",
+    description="API for face swapping with multiple modes and enhancement options",
+    version="2.0.0",
+    lifespan=lifespan
+)
 
 @serve.deployment()
 @serve.ingress(app)
 class APIIngress:
     """
-    A API class that sevres as ingress to the ray service and handles the image processing pipeline including face analysis, 
-    swapping, and enhancement.
+    API Ingress for face swap operations using Ray Serve.
+    
+    This class provides endpoints for face swapping operations with different modes:
+    - one_to_one: Standard single face swap (default)
+    - one_to_many: Apply one source face to all target faces
+    - sorted: Apply faces in spatial order (left-to-right or right-to-left)
+    - similarity: Match source faces to target faces by similarity
+    
+    It supports both URL-based operations (using GCP storage) and direct image upload.
     """
-    def __init__(self, analyzer_handle: DeploymentHandle, swapper_handle: DeploymentHandle, enhancer_handle: DeploymentHandle, codeformer_handle: DeploymentHandle, img_manager: DeploymentHandle):
+    def __init__(self, 
+                swap_processor: DeploymentHandle,
+                img_manager: DeploymentHandle):
         """
-        Initializes the ImagePipeline class with deployment handles for analyzer, swapper, enhancer, and image downloader.
+        Initialize the API Ingress with handles to required components.
         
         Args:
-            analyzer_handle (`DeploymentHandle`): The deployment handle for the FaceAnalyzer.
-            swapper_handle (`DeploymentHandle`): The deployment handle for the FaceSwapper.
-            enhancer_handle (`DeploymentHandle`): The deployment handle for the FaceEnhancer.
-            codeformer_handle (`DeploymentHandle`): The deployment handle for the CodeFormerEnhancer.
-            img_downloader (`DeploymentHandle`): The deployment handle for the image downloader.
+            swap_processor: Handle to the SwapProcessor deployment
+            img_manager: Handle to the GCPImageManager deployment
         """
-        self.analyzer_handle = analyzer_handle
-        self.swapper_handle = swapper_handle
-        self.enhancer_handle = enhancer_handle
-        self.codeformer_handle = codeformer_handle
+        self.swap_processor = swap_processor
         self.img_manager = img_manager
 
-    @app.post("/swap_url")
-    async def swap_url(self, request: Request) -> JSONResponse:
+    @app.post("/swap_url", 
+              response_model=Union[SuccessResponse, PartialSuccessResponse],
+              responses={
+                  200: {"model": SuccessResponse, "description": "Successful operation"},
+                  206: {"model": PartialSuccessResponse, "description": "Partially successful operation"},
+                  400: {"model": ErrorResponse, "description": "Bad request"},
+                  500: {"model": ErrorResponse, "description": "Server error"}
+              },
+              tags=["Face Swap"],
+              summary="Swap faces using images from GCP storage")
+    async def swap_url(self, request: SwapUrlRequest):
         """
-        Handles face swapping for images specified by URLs.
+        Perform face swapping using images stored in GCP bucket.
         
-        Args:
-            request (`Request`): The incoming request containing model filenames and face filename.
+        - **model_filenames**: List of target image filenames in the GCP bucket
+        - **face_filename**: Source face image filename in the GCP bucket
+        - **options**: Processing options including:
+            - **mode**: Swap mode (one_to_one, one_to_many, sorted, similarity)
+            - **direction**: Direction for sorted mode (left_to_right, right_to_left)
+            - **use_codeformer**: Whether to use CodeFormer for enhancement
+            - **codeformer_fidelity**: Balance between quality and fidelity (0-1)
+            - **background_enhance**: Whether to enhance the background
+            - **face_upsample**: Whether to upsample the faces
+            - **upscale**: Upscale factor for enhancement
         
         Returns:
-            `dict`: A dictionary containing the URLs of the processed images.
+            JSON response with URLs of processed images or error details
         """
-        request_data = await request.json()
-        model_filenames, face_filename = request_data["model_filenames"], request_data["face_filename"]
-
-        source = await self.img_manager.download_image.remote(face_filename)
-        source_face = await self.analyzer_handle.extract_faces.remote(source)
-
-        if source_face is None:
-            return JSONResponse({"error": "Bad Request", "message": "No face detected in the provided `face_filename`."}, status_code=400)
-
-        urls = []
-
-        for model_filename in model_filenames:
-            target = await self.img_manager.download_image.remote(model_filename)
-            target_face = await self.analyzer_handle.extract_faces.remote(target)
-
-            tmp = await self.swapper_handle.swap_face.remote(source_face, target_face, target)
-            target_face = await self.analyzer_handle.extract_faces.remote(tmp)
-            tmp = await self.enhancer_handle.enhance_face.remote(target_face, tmp)
-
-            url = await self.img_manager.upload_image.remote(tmp)
-            urls.append(url)
-
-        partial_success = False
-        for i, url in enumerate(urls):
-            if urls[i] is None:
-                partial_success = True
-
-        return JSONResponse({"urls": urls}, status_code=200 if not partial_success else 206)
-    
-    @app.post("/swap_url2")
-    async def swap_url2(self, face_filename: str, model_filenames: List[str]) -> JSONResponse:
-        """
-        Handles face swapping for images specified by URLs.
-        
-        Args:
-            face_filename: str  The Face file name in the bucket
-            model_filenames: List[str]  List of the models file names in the bucket
-        
-        Returns:
-            `dict`: A dictionary containing the URLs of the processed images.
-        """
-        face_filename = face_filename
-        model_filenames= model_filenames
-        
-        source = await self.img_manager.download_image.remote(face_filename)
-        source_face = await self.analyzer_handle.extract_faces.remote(source)
-
-        if source_face is None:
-            return JSONResponse({"error": "Bad Request", "message": "No face detected in the provided `face_filename`."}, status_code=400)
-
-        urls = []
-
-        for model_filename in model_filenames:
-            target = await self.img_manager.download_image.remote(model_filename)
-            target_face = await self.analyzer_handle.extract_faces.remote(target)
-
-            tmp = await self.swapper_handle.swap_face.remote(source_face, target_face, target)
-            target_face = await self.analyzer_handle.extract_faces.remote(tmp)
-            tmp = await self.enhancer_handle.enhance_face.remote(target_face, tmp)
-
-            url = await self.img_manager.upload_image.remote(tmp)
-            urls.append(url)
-
-        partial_success = False
-        for i, url in enumerate(urls):
-            if urls[i] is None:
-                partial_success = True
-
-        return JSONResponse({"urls": urls}, status_code=200 if not partial_success else 206)
-
-    @app.post("/swap_img")
-    async def swap_img(self, model: UploadFile, face: UploadFile): #-> StreamingResponse:
-        """
-        Handles face swapping for uploaded images.
-        
-        Args:
-            model: UploadFile  Model image file
-            face: UploadFile   Face image file
-        
-        Returns:
-            `StreamingResponse`: The response containing the processed image.
-        """
-        source = self.__load_image(await face.read())
-        target = self.__load_image(await model.read())
-
-        source_face = await self.analyzer_handle.extract_faces.remote(source)
-        if source_face is None:
-            return JSONResponse({"error": "Bad Request", "message": "No face detected in the provided `face`."}, status_code=400)
-
-        target_face = await self.analyzer_handle.extract_faces.remote(target)
-        if target_face is None:
-            return JSONResponse({"error": "Bad Request", "message": "No face detected in the provided `model`."}, status_code=400)
-
-        tmp = await self.swapper_handle.swap_face.remote(source_face, target_face, target)
-        target_face = await self.analyzer_handle.extract_faces.remote(tmp)
-        tmp = await self.enhancer_handle.enhance_face.remote(target_face, tmp)
-
-        result_img = tmp
-        img_bytes = self.__result_image_bytes(result_img)
-
-        return StreamingResponse(BytesIO(img_bytes), media_type="image/png")
-    
-    @app.post("/swap_url_codeformer")
-    async def swap_url_codeformer(self, face_filename: str, model_filenames: List[str], fidelity_weight: float = 0.5, background_enhance: bool = True, face_upsample: bool = True) -> JSONResponse:
-        """
-        Handles face swapping with CodeFormer enhancement for images specified by URLs.
-        
-        Args:
-            face_filename: str  The Face file name in the bucket
-            model_filenames: List[str]  List of the models file names in the bucket
-            fidelity_weight: float  Balance quality and fidelity (0: better quality, 1: better identity)
-            background_enhance: bool  Whether to enhance the background with RealESRGAN
-            face_upsample: bool  Whether to upsample the face with RealESRGAN
-        
-        Returns:
-            `dict`: A dictionary containing the URLs of the processed images.
-        """
-        source = await self.img_manager.download_image.remote(face_filename)
-        source_face = await self.analyzer_handle.extract_faces.remote(source)
-
-        if source_face is None:
-            return JSONResponse({"error": "Bad Request", "message": "No face detected in the provided `face_filename`."}, status_code=400)
-
-        urls = []
-
-        for model_filename in model_filenames:
-            target = await self.img_manager.download_image.remote(model_filename)
-            target_face = await self.analyzer_handle.extract_faces.remote(target)
-
-            # Swap face
-            tmp = await self.swapper_handle.swap_face.remote(source_face, target_face, target)
+        # Extract request data
+        face_filename = request.face_filename
+        model_filenames = request.model_filenames
+        options = request.options
             
-            # Extract face from swapped image
-            target_face = await self.analyzer_handle.extract_faces.remote(tmp)
-            
-            # Enhance with CodeFormer instead of regular enhancer
-            tmp = await self.codeformer_handle.enhance_face.remote(
-                target_face, 
-                tmp, 
-                fidelity_weight, 
-                background_enhance, 
-                face_upsample, 
-                2  # Fixed upscale factor of 2
+        # Download source image
+        source_img = await self.img_manager.download_image.remote(face_filename)
+        
+        if source_img is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Bad Request", "message": f"Failed to download image: {face_filename}"}
             )
+        
+        urls = []
+        failed_models = []
+        
+        # Process each target image
+        for model_filename in model_filenames:
+            try:
+                # Download target image
+                target_img = await self.img_manager.download_image.remote(model_filename)
+                
+                if target_img is None:
+                    failed_models.append(FailedModel(
+                        filename=model_filename,
+                        error="Failed to download image"
+                    ))
+                    continue
+                
+                # Process the swap using the SwapProcessor
+                try:
+                    result_img = await self.swap_processor.process_swap.remote(
+                        mode=options.mode,
+                        source_frame=source_img,
+                        target_frame=target_img,
+                        direction=options.direction,
+                        enhance=True,
+                        use_codeformer=options.use_codeformer,
+                        codeformer_fidelity=options.codeformer_fidelity,
+                        background_enhance=options.background_enhance,
+                        face_upsample=options.face_upsample,
+                        upscale=options.upscale
+                    )
+                except NoSourceFaceError as e:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail={"error": "Bad Request", "message": str(e)}
+                    )
+                except NoTargetFaceError as e:
+                    # For target face errors, we continue with the next model
+                    failed_models.append(FailedModel(
+                        filename=model_filename,
+                        error=str(e)
+                    ))
+                    continue
+                
+                # Upload the result
+                url = await self.img_manager.upload_image.remote(result_img)
+                if url:
+                    urls.append(url)
+                else:
+                    failed_models.append(FailedModel(
+                        filename=model_filename,
+                        error="Failed to upload result image"
+                    ))
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                failed_models.append(FailedModel(
+                    filename=model_filename,
+                    error=str(e)
+                ))
+        
+        # Determine response status code and content
+        if len(failed_models) > 0 and len(urls) > 0:
+            # Partial success
+            return JSONResponse(
+                status_code=status.HTTP_206_PARTIAL_CONTENT,
+                content=jsonable_encoder(PartialSuccessResponse(urls=urls, failed=failed_models))
+            )
+        elif len(failed_models) > 0 and len(urls) == 0:
+            # All failed
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Processing Failed", "details": [jsonable_encoder(model) for model in failed_models]}
+            )
+        else:
+            # All succeeded
+            return SuccessResponse(urls=urls)
 
-            url = await self.img_manager.upload_image.remote(tmp)
-            urls.append(url)
-
-        partial_success = False
-        for i, url in enumerate(urls):
-            if urls[i] is None:
-                partial_success = True
-
-        return JSONResponse({"urls": urls}, status_code=200 if not partial_success else 206)
+    @app.post("/swap_img",
+              responses={
+                  200: {"description": "Successful operation", "content": {"image/png": {}}},
+                  400: {"model": ErrorResponse, "description": "Bad request"},
+                  500: {"model": ErrorResponse, "description": "Server error"}
+              },
+              tags=["Face Swap"],
+              summary="Swap faces using uploaded images")
+    async def swap_img(self, 
+                      model: UploadFile = File(..., description="Target image file"),
+                      face: UploadFile = File(..., description="Source face image file"),
+                      options: ProcessingOptions = Depends()):
+        """
+        Perform face swapping using directly uploaded images.
+        
+        - **model**: Target image file upload
+        - **face**: Source face image file upload
+        - **options**: Processing options including:
+            - **mode**: Swap mode (one_to_one, one_to_many, sorted, similarity)
+            - **direction**: Direction for sorted mode (left_to_right, right_to_left)
+            - **use_codeformer**: Whether to use CodeFormer for enhancement
+            - **codeformer_fidelity**: Balance between quality and fidelity (0-1)
+            - **background_enhance**: Whether to enhance the background
+            - **face_upsample**: Whether to upsample the faces
+            - **upscale**: Upscale factor for enhancement
+        
+        Returns:
+            The processed image
+        """
+        try:
+            # Load source and target images
+            source_img = self.__load_image(await face.read())
+            target_img = self.__load_image(await model.read())
+            
+            if source_img is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={"error": "Bad Request", "message": "Invalid source image format"}
+                )
+                
+            if target_img is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={"error": "Bad Request", "message": "Invalid target image format"}
+                )
+            
+            # Process the swap using the SwapProcessor
+            try:
+                result_img = await self.swap_processor.process_swap.remote(
+                    mode=options.mode,
+                    source_frame=source_img,
+                    target_frame=target_img,
+                    direction=options.direction,
+                    enhance=True,
+                    use_codeformer=options.use_codeformer,
+                    codeformer_fidelity=options.codeformer_fidelity,
+                    background_enhance=options.background_enhance,
+                    face_upsample=options.face_upsample,
+                    upscale=options.upscale
+                )
+            except NoSourceFaceError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={"error": "Bad Request", "message": str(e)}
+                )
+            except NoTargetFaceError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={"error": "Bad Request", "message": str(e)}
+                )
+            
+            # Convert result to bytes for response
+            img_bytes = self.__result_image_bytes(result_img)
+            
+            return StreamingResponse(BytesIO(img_bytes), media_type="image/png")
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={"error": "Processing Failed", "message": str(e)}
+            )
 
     def __load_image(self, img_bytes: bytes) -> np.ndarray:
         """
-        Loads an image from bytes.
+        Load an image from bytes.
         
         Args:
-            img_bytes (`bytes`): The image bytes.
-        
+            img_bytes: Image data as bytes
+            
         Returns:
-            `np.ndarray`: The loaded image.
+            NumPy array containing the image
         """
-        nparr = np.frombuffer(img_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        return img
+        try:
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            return img
+        except Exception:
+            return None
 
     def __result_image_bytes(self, image: np.ndarray) -> bytes:
         """
-        Encodes an image to bytes.
+        Convert an image to bytes.
         
         Args:
-            image (`np.ndarray`): The image to encode.
-        
+            image: Image as NumPy array
+            
         Returns:
-            `bytes`: The encoded image bytes.
+            Image encoded as bytes
         """
         _, img_encoded = cv2.imencode('.png', image)
         return img_encoded.tobytes()
@@ -279,12 +340,15 @@ for app in config['applications']:
 if gcp_image_manager_config is None:
     raise ValueError("GCPImageManager configuration not found in config.yaml")
 
-# Bind actors with configuration
+# Bind actors with configuration for SwapProcessor
 analyzer = FaceAnalyzer.bind()
 swapper = FaceSwapper.bind()
 enhancer = FaceEnhancer.bind()
 codeformer = CodeFormerEnhancer.bind()
 img_manager = GCPImageManager.bind(*gcp_image_manager_config)
 
-# Bind API Gateway with actors
-app = APIIngress.bind(analyzer, swapper, enhancer, codeformer, img_manager)
+# Create the SwapProcessor
+swap_processor = SwapProcessor.bind(analyzer, swapper, enhancer, codeformer)
+
+# Simplified binding for API Ingress - only needs SwapProcessor and GCPImageManager
+app = APIIngress.bind(swap_processor, img_manager)
