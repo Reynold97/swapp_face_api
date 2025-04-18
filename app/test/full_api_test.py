@@ -135,7 +135,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_codeformer", action="store_true", help="Use CodeFormer for enhancement")
     parser.add_argument("--codeformer_fidelity", type=float, default=0.5, 
                         help="Balance between quality and fidelity (0-1)")
-    parser.add_argument("--background_enhance", action="store_true", default=True, 
+    parser.add_argument("--background_enhance", action="store_true", default=False, 
                         help="Enhance background (CodeFormer only)")
     parser.add_argument("--no_background_enhance", action="store_false", dest="background_enhance", 
                         help="Don't enhance background")
@@ -185,3 +185,12 @@ if __name__ == "__main__":
             model_image_path=args.model_path,
             **common_opts
         )
+
+# python app/test/full_api_test.py --endpoint url --face_filename 1.jpg --model_filename 2.png
+# python app/test/full_api_test.py --endpoint url --mode one_to_many --face_filename 1.jpg --model_filename pareja3.jpg
+# python app/test/full_api_test.py --endpoint url --mode sorted --direction left_to_right --face_filename 1.jpg --model_filename pareja3.jpg
+# python app/test/full_api_test.py --endpoint url --mode sorted --direction right_to_left --face_filename 1.jpg --model_filename pareja3.jpg
+# python app/test/full_api_test.py --endpoint url --mode similarity --face_filename pareja1.jpg --model_filename pareja3.jpg
+# python app/test/full_api_test.py --endpoint url --use_codeformer --codeformer_fidelity 0.5 --face_filename 1.jpg --model_filename 2.png
+# python app/test/full_api_test.py --endpoint url --mode sorted --direction left_to_right --use_codeformer --codeformer_fidelity 0.5 --upscale 4 --face_filename pareja1.jpg --model_filename pareja3.jpg
+# python app/test/full_api_test.py --endpoint url --mode similarity --use_codeformer --codeformer_fidelity 0.5 --upscale 4 --face_filename pareja1.jpg --model_filename pareja3.jpg
