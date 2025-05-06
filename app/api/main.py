@@ -9,6 +9,9 @@ from contextlib import asynccontextmanager
 import cv2
 import numpy as np
 from io import BytesIO
+import logging
+from ray.serve import get_replica_context
+logger = logging.getLogger("ray.serve")
 
 from app.api.schemas import (
     SwapUrlRequest, SwapImgRequest, ProcessingOptions, SuccessResponse, 
@@ -102,112 +105,138 @@ class APIIngress:
     async def swap_url(self, request: SwapUrlRequest):
         """
         Perform face swapping using images stored in GCP bucket.
-        
-        - **model_filenames**: List of target image filenames in the GCP bucket
-        - **face_filename**: Source face image filename in the GCP bucket
-        - **options**: Processing options including:
-            - **mode**: Swap mode (one_to_one, one_to_many, sorted, similarity)
-            - **direction**: Direction for sorted mode (left_to_right, right_to_left)
-            - **use_codeformer**: Whether to use CodeFormer for enhancement
-            - **codeformer_fidelity**: Balance between quality and fidelity (0-1)
-            - **background_enhance**: Whether to enhance the background
-            - **face_upsample**: Whether to upsample the faces
-            - **upscale**: Upscale factor for enhancement
-        
-        Returns:
-            JSON response with URLs of processed images or error details
         """
-        # Extract request data
-        face_filename = request.face_filename
-        model_filenames = request.model_filenames
-        options = request.options
+        replica_context = get_replica_context()
+        replica_tag = None if replica_context is None else replica_context.replica_tag
+        
+        logger.info(f"[{replica_tag}] swap_url endpoint called")
+        try:
+            # Extract request data
+            face_filename = request.face_filename
+            model_filenames = request.model_filenames
+            options = request.options
+                
+            logger.info(f"[{replica_tag}] Request data: face={face_filename}, models={model_filenames}, options={options}")
+                
+            # Download source image
+            logger.info(f"[{replica_tag}] Downloading source image: {face_filename}")
+            source_img = await self.img_manager.download_image.remote(face_filename)
             
-        # Download source image
-        source_img = await self.img_manager.download_image.remote(face_filename)
-        
-        if source_img is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"error": "Bad Request", "message": f"Failed to download image: {face_filename}"}
-            )
-        
-        urls = []
-        failed_models = []
-        
-        # Process each target image
-        for model_filename in model_filenames:
-            try:
-                # Download target image
-                target_img = await self.img_manager.download_image.remote(model_filename)
-                
-                if target_img is None:
-                    failed_models.append(FailedModel(
-                        filename=model_filename,
-                        error="Failed to download image"
-                    ))
-                    continue
-                
-                # Process the swap using the SwapProcessor
+            img_shape = None if source_img is None else source_img.shape
+            logger.info(f"[{replica_tag}] Source image download result: {img_shape}")
+            
+            if source_img is None:
+                logger.error(f"[{replica_tag}] Failed to download image: {face_filename}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={"error": "Bad Request", "message": f"Failed to download image: {face_filename}"}
+                )
+            
+            urls = []
+            failed_models = []
+            
+            # Process each target image
+            for idx, model_filename in enumerate(model_filenames):
+                logger.info(f"[{replica_tag}] Processing target image {idx+1}/{len(model_filenames)}: {model_filename}")
                 try:
-                    result_img = await self.swap_processor.process_swap.remote(
-                        mode=options.mode,
-                        source_frame=source_img,
-                        target_frame=target_img,
-                        direction=options.direction,
-                        enhance=True,
-                        use_codeformer=options.use_codeformer,
-                        codeformer_fidelity=options.codeformer_fidelity,
-                        background_enhance=options.background_enhance,
-                        face_upsample=options.face_upsample,
-                        upscale=options.upscale
-                    )
-                except NoSourceFaceError as e:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail={"error": "Bad Request", "message": str(e)}
-                    )
-                except NoTargetFaceError as e:
-                    # For target face errors, we continue with the next model
+                    # Download target image
+                    logger.info(f"[{replica_tag}] Downloading target image: {model_filename}")
+                    target_img = await self.img_manager.download_image.remote(model_filename)
+                    
+                    img_shape = None if target_img is None else target_img.shape
+                    logger.info(f"[{replica_tag}] Target image download result: {img_shape}")
+                    
+                    if target_img is None:
+                        logger.error(f"[{replica_tag}] Failed to download target: {model_filename}")
+                        failed_models.append(FailedModel(
+                            filename=model_filename,
+                            error="Failed to download image"
+                        ))
+                        continue
+                    
+                    # Process the swap using the SwapProcessor
+                    try:
+                        logger.info(f"[{replica_tag}] Calling SwapProcessor.process_swap with mode={options.mode}")
+                        result_img = await self.swap_processor.process_swap.remote(
+                            mode=options.mode,
+                            source_frame=source_img,
+                            target_frame=target_img,
+                            direction=options.direction,
+                            enhance=True,
+                            use_codeformer=options.use_codeformer,
+                            codeformer_fidelity=options.codeformer_fidelity,
+                            background_enhance=options.background_enhance,
+                            face_upsample=options.face_upsample,
+                            upscale=options.upscale
+                        )
+                        logger.info(f"[{replica_tag}] SwapProcessor.process_swap completed successfully")
+                        
+                    except NoSourceFaceError as e:
+                        logger.error(f"[{replica_tag}] NoSourceFaceError: {str(e)}")
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={"error": "Bad Request", "message": str(e)}
+                        )
+                    except NoTargetFaceError as e:
+                        logger.error(f"[{replica_tag}] NoTargetFaceError: {str(e)}")
+                        failed_models.append(FailedModel(
+                            filename=model_filename,
+                            error=str(e)
+                        ))
+                        continue
+                    except Exception as e:
+                        logger.exception(f"[{replica_tag}] Error in SwapProcessor: {str(e)}")
+                        raise
+                    
+                    # Upload the result
+                    logger.info(f"[{replica_tag}] Uploading result for {model_filename}")
+                    url = await self.img_manager.upload_image.remote(result_img)
+                    logger.info(f"[{replica_tag}] Upload result: {url}")
+                    
+                    if url:
+                        urls.append(url)
+                    else:
+                        logger.error(f"[{replica_tag}] Failed to upload result for {model_filename}")
+                        failed_models.append(FailedModel(
+                            filename=model_filename,
+                            error="Failed to upload result image"
+                        ))
+                    
+                except HTTPException:
+                    logger.exception(f"[{replica_tag}] HTTPException in processing loop")
+                    raise
+                except Exception as e:
+                    logger.exception(f"[{replica_tag}] Unexpected error: {str(e)}")
                     failed_models.append(FailedModel(
                         filename=model_filename,
                         error=str(e)
                     ))
-                    continue
+            
+            # Determine response status code and content
+            logger.info(f"[{replica_tag}] Processing complete. Successes: {len(urls)}, Failures: {len(failed_models)}")
+            
+            if len(failed_models) > 0 and len(urls) > 0:
+                # Partial success
+                logger.info(f"[{replica_tag}] Returning 206 Partial Content")
+                return JSONResponse(
+                    status_code=status.HTTP_206_PARTIAL_CONTENT,
+                    content=jsonable_encoder(PartialSuccessResponse(urls=urls, failed=failed_models))
+                )
+            elif len(failed_models) > 0 and len(urls) == 0:
+                # All failed
+                logger.error(f"[{replica_tag}] All operations failed")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={"error": "Processing Failed", "details": [jsonable_encoder(model) for model in failed_models]}
+                )
+            else:
+                # All succeeded
+                logger.info(f"[{replica_tag}] All operations succeeded")
+                return SuccessResponse(urls=urls)
                 
-                # Upload the result
-                url = await self.img_manager.upload_image.remote(result_img)
-                if url:
-                    urls.append(url)
-                else:
-                    failed_models.append(FailedModel(
-                        filename=model_filename,
-                        error="Failed to upload result image"
-                    ))
-                
-            except HTTPException:
-                raise
-            except Exception as e:
-                failed_models.append(FailedModel(
-                    filename=model_filename,
-                    error=str(e)
-                ))
-        
-        # Determine response status code and content
-        if len(failed_models) > 0 and len(urls) > 0:
-            # Partial success
-            return JSONResponse(
-                status_code=status.HTTP_206_PARTIAL_CONTENT,
-                content=jsonable_encoder(PartialSuccessResponse(urls=urls, failed=failed_models))
-            )
-        elif len(failed_models) > 0 and len(urls) == 0:
-            # All failed
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"error": "Processing Failed", "details": [jsonable_encoder(model) for model in failed_models]}
-            )
-        else:
-            # All succeeded
-            return SuccessResponse(urls=urls)
+        except Exception as e:
+            logger.exception(f"[{replica_tag}] Unhandled exception in swap_url: {str(e)}")
+            raise
 
     @app.post("/swap_img",
               responses={
@@ -294,34 +323,27 @@ class APIIngress:
             )
 
     def __load_image(self, img_bytes: bytes) -> np.ndarray:
-        """
-        Load an image from bytes.
-        
-        Args:
-            img_bytes: Image data as bytes
-            
-        Returns:
-            NumPy array containing the image
-        """
+        """Load an image from bytes."""
         try:
+            logger.info("__load_image called")
             nparr = np.frombuffer(img_bytes, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            logger.info(f"__load_image result: {'success' if img is not None else 'failed'}")
             return img
-        except Exception:
+        except Exception as e:
+            logger.exception(f"Error in __load_image: {str(e)}")
             return None
 
     def __result_image_bytes(self, image: np.ndarray) -> bytes:
-        """
-        Convert an image to bytes.
-        
-        Args:
-            image: Image as NumPy array
-            
-        Returns:
-            Image encoded as bytes
-        """
-        _, img_encoded = cv2.imencode('.png', image)
-        return img_encoded.tobytes()
+        """Convert an image to bytes."""
+        try:
+            logger.info("__result_image_bytes called")
+            _, img_encoded = cv2.imencode('.png', image)
+            logger.info("__result_image_bytes encoding successful")
+            return img_encoded.tobytes()
+        except Exception as e:
+            logger.exception(f"Error in __result_image_bytes: {str(e)}")
+            raise
 
 
 # Load the GCP Bucket config
