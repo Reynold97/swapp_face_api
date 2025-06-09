@@ -1,6 +1,6 @@
 from typing import List, Optional, Union, Dict, Any
 from enum import Enum
-from pydantic import BaseModel, Field, validator, conlist, conint, confloat, HttpUrl
+from pydantic import BaseModel, Field, field_validator, conlist, conint, confloat, HttpUrl
 
 
 class SwapMode(str, Enum):
@@ -51,18 +51,33 @@ class ProcessingOptions(BaseModel):
         ge=1,
         le=4
     )
+    face_refinement_steps: int = Field(
+        default=1,
+        description="Number of repeated face swaps to refine the result (1-5)",
+        ge=1,
+        le=5
+    )
 
-    @validator('upscale')
+    @field_validator('upscale')
+    @classmethod  # Keep the classmethod decorator
     def validate_upscale(cls, v):
         """Validate upscale factor is within reasonable limits."""
         if v > 4:
             return 4  # Cap at 4 to prevent excessive memory usage
         return v
 
-    @validator('codeformer_fidelity')
+    @field_validator('codeformer_fidelity')
+    @classmethod
     def validate_fidelity(cls, v):
         """Validate codeformer_fidelity is between 0 and 1."""
         return max(0.0, min(1.0, v))  # Clamp between 0 and 1
+    
+    # New validator for face_refinement_steps (optional since we have ge/le constraints)
+    @field_validator('face_refinement_steps')
+    @classmethod
+    def validate_swap_iterations(cls, v):
+        """Validate swap_iterations is within reasonable limits."""
+        return max(1, min(5, v))  # Clamp between 1 and 5
 
 
 class SwapUrlRequest(BaseModel):

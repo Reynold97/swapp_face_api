@@ -7,12 +7,14 @@ serve run app/configs/serve_config_cpu.yaml
 
 serve run app/configs/serve_config_gpu.yaml
 
-anyscale service deploy -f app/configs/service_config_cpu.yaml
+anyscale service deploy -f app/configs/service_config_gpu_load.yaml -n load_test --in-place
 
 anyscale service terminate --name=SwapFaceAPI-Service-Prod
 
 locust -f app/test/locustfile.py
 
+locust -f app/test/locust_face_swap_simple.py --host=https://load-test-m8e3i.cld-7plwtre98mg9gb3d.s.anyscaleuserdata.com/ -u 5 -r 1 -t 30s
+ 
 Example url call cpu
 
 - DOWNLOAD_IMAGE OK 210.7ms   4.4%
@@ -29,3 +31,8 @@ curl -X POST "http://localhost:8000/swap_url2?face_filename=Reynold_Oramas.jpg" 
 -H "Content-Type: application/json" \
 -d '["samurai.png"]'
 
+
+
+analyzer 528
+enhancer 2275
+swapper 746

@@ -194,3 +194,13 @@ if __name__ == "__main__":
 # python app/test/full_api_test.py --endpoint url --use_codeformer --codeformer_fidelity 0.5 --face_filename 1.jpg --model_filename 2.png
 # python app/test/full_api_test.py --endpoint url --mode sorted --direction left_to_right --use_codeformer --codeformer_fidelity 0.5 --upscale 4 --face_filename pareja1.jpg --model_filename pareja3.jpg
 # python app/test/full_api_test.py --endpoint url --mode similarity --use_codeformer --codeformer_fidelity 0.5 --upscale 4 --face_filename pareja1.jpg --model_filename pareja3.jpg
+
+
+# python app/test/full_api_test.py --endpoint img --face_path "1.jpg" --model_path "2.png"
+# python app/test/full_api_test.py --endpoint img --mode one_to_many --face_path "1.jpg" --model_path "pareja3.jpg"
+# python app/test/full_api_test.py --endpoint img --mode sorted --direction left_to_right --face_path "pareja1.jpg" --model_path "pareja3.jpg"
+# python app/test/full_api_test.py --endpoint img --mode sorted --direction right_to_left --face_path "pareja1.jpg" --model_path "pareja3.jpg"
+# python app/test/full_api_test.py --endpoint img --mode similarity --face_path "pareja1.jpg" --model_path "pareja3.jpg"
+# python app/test/full_api_test.py --endpoint img --use_codeformer --codeformer_fidelity 0.5 --face_path "1.jpg" --model_path "2.png"
+# python app/test/full_api_test.py --endpoint img --mode sorted --direction left_to_right --use_codeformer --codeformer_fidelity 0.5 --upscale 4 --face_path "pareja1.jpg" --model_path "pareja3.jpg"
+# python app/test/full_api_test.py --endpoint img --mode similarity --use_codeformer --codeformer_fidelity 0.5 --upscale 4 --face_path "pareja1.jpg" --model_path "pareja3.jpg"

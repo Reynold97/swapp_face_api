@@ -71,7 +71,8 @@ class SwapProcessor:
                           codeformer_fidelity: float = 0.5,
                           background_enhance: bool = True,
                           face_upsample: bool = True,
-                          upscale: int = 2) -> np.ndarray:
+                          upscale: int = 2,
+                          face_refinement_steps: int = 1) -> np.ndarray:
         """
         Main entry point for processing face swaps with multiple modes.
         
@@ -95,6 +96,9 @@ class SwapProcessor:
             NoTargetFaceError: If no face is detected in the target image
             ValueError: If the swap mode is invalid
         """
+        # Validate the refinement steps
+        face_refinement_steps = max(1, min(face_refinement_steps, 5))
+
         try:
             # Convert string mode to enum for easier handling
             swap_mode = SwapMode(mode.lower())
@@ -105,7 +109,8 @@ class SwapProcessor:
         if swap_mode == SwapMode.ONE_TO_ONE:
             return await self.one_to_one_swap(
                 source_frame, target_frame, enhance, use_codeformer,
-                codeformer_fidelity, background_enhance, face_upsample, upscale
+                codeformer_fidelity, background_enhance, face_upsample, upscale, 
+                face_refinement_steps
             )
         elif swap_mode == SwapMode.ONE_TO_MANY:
             return await self.one_to_many_swap(
@@ -133,7 +138,8 @@ class SwapProcessor:
                             codeformer_fidelity: float = 0.5,
                             background_enhance: bool = True,
                             face_upsample: bool = True,
-                            upscale: int = 2) -> np.ndarray:
+                            upscale: int = 2,
+                            face_refinement_steps: int = 1) -> np.ndarray:
         """
         Apply one source face to one target face (standard swap).
         
@@ -146,6 +152,7 @@ class SwapProcessor:
             background_enhance: Whether to enhance the background (CodeFormer only)
             face_upsample: Whether to upsample the faces (CodeFormer only)
             upscale: The upscale factor for enhancing (CodeFormer only)
+            face_refinement_steps: Number of iterative swaps
             
         Returns:
             The processed image with swapped face
@@ -164,10 +171,22 @@ class SwapProcessor:
         if target_face is None:
             raise NoTargetFaceError()
             
-        # Apply the swap
-        result_frame = await self.swapper_handle.swap_face.remote(
-            source_face, target_face, target_frame
-        )
+        # Initialize result with the target frame
+        result_frame = target_frame.copy()
+        current_target_face = target_face
+        
+        # Apply the swap multiple times 
+        for i in range(face_refinement_steps):
+            result_frame = await self.swapper_handle.swap_face.remote(
+                source_face, current_target_face, result_frame
+            )
+            
+            # If we need to do more iterations, re-detect the face
+            if i < face_refinement_steps - 1:
+                current_target_face = await self.analyzer_handle.extract_faces.remote(result_frame, index=0)
+                if current_target_face is None:
+                    # If face detection fails, stop iterating
+                    break
         
         # Enhance if requested
         if enhance:

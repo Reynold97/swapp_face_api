@@ -58,7 +58,7 @@ RUN pip install --no-cache-dir -r codeformer_requirements.txt
 
 # Install additional Python packages
 RUN pip install --no-cache-dir \
-    ray[serve]==2.37.0 \
+    ray[serve]==2.46.0 \
     anyscale \
     'urllib3<1.27' \
     Pillow \
