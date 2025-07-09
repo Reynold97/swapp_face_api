@@ -30,6 +30,68 @@ class FaceAnalyzer:
         
         print(f'RECOGNIZER and DETECTOR are using the following provider(s): {self.recognizer.get_providers()} and {self.detector.get_providers()}')
 
+    def check_health(self):
+        """
+        Custom health check that performs actual face detection and recognition.
+        Raises an exception if the analyzer is unhealthy.
+        """
+        import json
+        import cv2
+        import numpy as np
+        import os
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Get the directory where analyzer.py is located
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # Go up to app directory (from app/pipe/components to app)
+            app_dir = os.path.abspath(os.path.join(current_dir, '..', '..'))
+            
+            # Construct path to test image
+            image_path = os.path.join(app_dir, 'test', 'test_data', 'frame.png')
+            
+            # Load test image
+            test_frame = cv2.imread(image_path)
+            if test_frame is None:
+                raise RuntimeError(f"Failed to load test image from {image_path}")
+            
+            # Convert BGR to RGB
+            test_frame = cv2.cvtColor(test_frame, cv2.COLOR_BGR2RGB)
+            
+            # Use a smaller version for health check
+            small_frame = cv2.resize(test_frame, (640, 640))
+            
+            # Test face extraction (detection + recognition)
+            faces = self.extract_faces(small_frame, index=-1)
+            
+            # It's OK if no faces are found (might be using a test image without faces)
+            # We're primarily checking that the models don't crash
+            if faces is not None:
+                if isinstance(faces, list) and len(faces) > 0:
+                    # Verify the first face has the expected structure
+                    face = faces[0]
+                    if not hasattr(face, 'kps') or not hasattr(face, 'embedding'):
+                        raise RuntimeError("Face object missing required attributes")
+                    
+                    # Check shapes
+                    if face.kps.shape != (5, 2):
+                        raise RuntimeError(f"Invalid kps shape: {face.kps.shape}")
+                    if face.embedding.shape != (512,):
+                        raise RuntimeError(f"Invalid embedding shape: {face.embedding.shape}")
+            
+            # If we reach here, both detector and recognizer are working
+            logger.debug("FaceAnalyzer health check passed")
+
+        except FileNotFoundError as e:
+            logger.error(f"Test data not found: {e}")
+            raise RuntimeError(f"Health check configuration error: {e}")
+        
+        except Exception as e:
+            logger.error(f"Health check failed: {type(e).__name__}: {e}")
+            raise RuntimeError(f"Health check failed: {e}")
+
     def extract_faces(self, frame: np.ndarray, index: int = 0):
         """
         Extracts faces from a given frame and returns the face at the specified index.

@@ -3,6 +3,8 @@ import cupy as cp
 import numpy as np
 import onnxruntime
 from ray import serve
+import logging
+logger = logging.getLogger("ray.serve")
 from app.utils.utils import conditional_download
 
 
@@ -26,6 +28,78 @@ class FaceEnhancer:
         )
         
         print(f'ENHANCER is using the following provider(s): {self.enhancer.get_providers()}')
+
+    def check_health(self):
+        """
+        Custom health check that performs actual face enhancement inference.
+        Raises an exception if the enhancer is unhealthy.
+        """
+        import json
+        import cv2
+        import numpy as np
+        import os
+        from app.utils.utils import Face
+        
+        try:
+            # Get the directory where enhancer.py is located
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            # Go up to app directory (from app/pipe/components to app)
+            app_dir = os.path.abspath(os.path.join(current_dir, '..', '..'))
+            
+            # Construct paths to test data
+            json_path = os.path.join(app_dir, 'test', 'test_data', 'face.json')
+            image_path = os.path.join(app_dir, 'test', 'test_data', 'frame.png')
+            
+            # Debug logging to verify paths
+            #logger.debug(f"Looking for test data at: {json_path}")
+            
+            # Load test face data
+            with open(json_path, 'r') as f:
+                face_data = json.load(f)
+            
+            # Load test image
+            test_frame = cv2.imread(image_path)
+            if test_frame is None:
+                raise RuntimeError(f"Failed to load test image from {image_path}")
+            
+            # Convert BGR to RGB (OpenCV loads as BGR)
+            test_frame = cv2.cvtColor(test_frame, cv2.COLOR_BGR2RGB)
+            
+            # Create Face namedtuple from loaded data
+            test_face = Face(
+                kps=np.array(face_data['kps'], dtype=np.float32),
+                embedding=np.array(face_data['embedding'], dtype=np.float32)
+            )
+            
+            # Perform test enhancement
+            result = self.enhance_face(test_face, test_frame)
+            
+            # Verify result is valid
+            if result is None:
+                raise RuntimeError("Enhancement returned None")
+            
+            if not isinstance(result, np.ndarray):
+                raise RuntimeError(f"Enhancement returned invalid type: {type(result)}")
+            
+            # Check output shape matches input
+            if result.shape != test_frame.shape:
+                raise RuntimeError(
+                    f"Output shape {result.shape} doesn't match input shape {test_frame.shape}"
+                )
+            
+            # If we reach here, health check passed
+            logger.info("FaceEnhancer health check passed")
+        
+        except FileNotFoundError as e:
+            # This is a configuration error, not a runtime health issue
+            logger.error(f"Test data not found: {e}")
+            raise RuntimeError(f"Health check configuration error: {e}")
+        
+        except Exception as e:
+            # Catch all other exceptions
+            logger.error(f"Health check failed: {type(e).__name__}: {e}")
+            raise RuntimeError(f"Health check failed: {e}")
 
     def enhance_face(self, target_face, temp_frame: np.ndarray) -> np.ndarray:
         """

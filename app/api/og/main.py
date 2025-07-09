@@ -14,6 +14,8 @@ from app.pipe.components.swapper import FaceSwapper
 from app.pipe.components.enhancer_codeformer import CodeFormerEnhancer
 from app.services.gcp_bucket_manager import GCPImageManager
 from app.utils.utils import conditional_download
+import logging
+logger = logging.getLogger("ray.serve")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI): 
@@ -80,34 +82,38 @@ class APIIngress:
         Returns:
             `dict`: A dictionary containing the URLs of the processed images.
         """
-        request_data = await request.json()
-        model_filenames, face_filename = request_data["model_filenames"], request_data["face_filename"]
+        try:
+            request_data = await request.json()
+            model_filenames, face_filename = request_data["model_filenames"], request_data["face_filename"]
 
-        source = await self.img_manager.download_image.remote(face_filename)
-        source_face = await self.analyzer_handle.extract_faces.remote(source)
+            source = await self.img_manager.download_image.remote(face_filename)
+            source_face = await self.analyzer_handle.extract_faces.remote(source)
 
-        if source_face is None:
-            return JSONResponse({"error": "Bad Request", "message": "No face detected in the provided `face_filename`."}, status_code=400)
+            if source_face is None:
+                return JSONResponse({"error": "Bad Request", "message": "No face detected in the provided `face_filename`."}, status_code=400)
 
-        urls = []
+            urls = []
+        
+            for model_filename in model_filenames:
+                target = await self.img_manager.download_image.remote(model_filename)
+                target_face = await self.analyzer_handle.extract_faces.remote(target)
 
-        for model_filename in model_filenames:
-            target = await self.img_manager.download_image.remote(model_filename)
-            target_face = await self.analyzer_handle.extract_faces.remote(target)
+                tmp = await self.swapper_handle.swap_face.remote(source_face, target_face, target)
+                target_face = await self.analyzer_handle.extract_faces.remote(tmp)
+                tmp = await self.enhancer_handle.enhance_face.remote(target_face, tmp)
 
-            tmp = await self.swapper_handle.swap_face.remote(source_face, target_face, target)
-            target_face = await self.analyzer_handle.extract_faces.remote(tmp)
-            tmp = await self.enhancer_handle.enhance_face.remote(target_face, tmp)
+                url = await self.img_manager.upload_image.remote(tmp)
+                urls.append(url)
 
-            url = await self.img_manager.upload_image.remote(tmp)
-            urls.append(url)
+            partial_success = False
+            for i, url in enumerate(urls):
+                if urls[i] is None:
+                    partial_success = True
 
-        partial_success = False
-        for i, url in enumerate(urls):
-            if urls[i] is None:
-                partial_success = True
-
-        return JSONResponse({"urls": urls}, status_code=200 if not partial_success else 206)
+            return JSONResponse({"urls": urls}, status_code=200 if not partial_success else 206)
+        except Exception as e:
+            logger.exception(f"Unhandled exception in swap_url: {str(e)}")
+            raise
     
     @app.post("/swap_url2")
     async def swap_url2(self, face_filename: str, model_filenames: List[str]) -> JSONResponse:

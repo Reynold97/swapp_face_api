@@ -32,6 +32,79 @@ class FaceSwapper:
         
         print(f'SWAPPER is using the following provider(s): {self.swapper.get_providers()}')
 
+    def check_health(self):
+        """
+        Custom health check that performs actual face swapping inference.
+        Raises an exception if the swapper is unhealthy.
+        """
+        import json
+        import cv2
+        import numpy as np
+        import os
+        import logging
+        from app.utils.utils import Face
+        
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Get the directory where swapper.py is located
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # Go up to app directory (from app/pipe/components to app)
+            app_dir = os.path.abspath(os.path.join(current_dir, '..', '..'))
+            
+            # Construct paths to test data
+            json_path = os.path.join(app_dir, 'test', 'test_data', 'face.json')
+            image_path = os.path.join(app_dir, 'test', 'test_data', 'frame.png')
+            
+            # Load test face data
+            with open(json_path, 'r') as f:
+                face_data = json.load(f)
+            
+            # Load test image
+            test_frame = cv2.imread(image_path)
+            if test_frame is None:
+                raise RuntimeError(f"Failed to load test image from {image_path}")
+            
+            # Convert BGR to RGB
+            test_frame = cv2.cvtColor(test_frame, cv2.COLOR_BGR2RGB)
+            
+            # Create Face namedtuple from loaded data
+            # Use the same face for both source and target for health check
+            test_face = Face(
+                kps=np.array(face_data['kps'], dtype=np.float32),
+                embedding=np.array(face_data['embedding'], dtype=np.float32)
+            )
+            
+            # Use a smaller crop of the image to avoid memory issues
+            small_frame = cv2.resize(test_frame, (512, 512))
+            
+            # Perform test swap
+            result = self.swap_face(test_face, test_face, small_frame)
+            
+            # Verify result is valid
+            if result is None:
+                raise RuntimeError("Face swap returned None")
+            
+            if not isinstance(result, np.ndarray):
+                raise RuntimeError(f"Face swap returned invalid type: {type(result)}")
+            
+            # Check output shape matches input
+            if result.shape != small_frame.shape:
+                raise RuntimeError(
+                    f"Output shape {result.shape} doesn't match input shape {small_frame.shape}"
+                )
+            
+            # If we reach here, health check passed
+            logger.debug("FaceSwapper health check passed")
+            
+        except FileNotFoundError as e:
+            logger.error(f"Test data not found: {e}")
+            raise RuntimeError(f"Health check configuration error: {e}")
+        
+        except Exception as e:
+            logger.error(f"Health check failed: {type(e).__name__}: {e}")
+            raise RuntimeError(f"Health check failed: {e}")
+
     def swap_face(self, source_face: Face, target_face: Face, temp_frame: np.ndarray) -> np.ndarray:
         """
         Swaps the source face with the target face in the given frame and returns the resulting frame.

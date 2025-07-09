@@ -7,7 +7,7 @@ serve run app/configs/serve_config_cpu.yaml
 
 serve run app/configs/serve_config_gpu.yaml
 
-anyscale service deploy -f app/configs/service_config_gpu_load.yaml -n load_test --in-place
+anyscale service deploy -f app/configs/service_config_gpu_load.yaml -n gpu_server --in-place
 
 anyscale service terminate --name=SwapFaceAPI-Service-Prod
 
