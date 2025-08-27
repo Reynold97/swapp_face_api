@@ -18,22 +18,26 @@ compute_config:
       min_nodes: 1
       max_nodes: 25
       market_type: PREFER_SPOT
-    - instance_type: e2-highcpu-4
+      #resources:
+      #  CPU: 0
+    - instance_type: e2-standard-4
       flags: {}
       name: 4CPU-4GB
       min_nodes: 1
       max_nodes: 25
       market_type: ON_DEMAND
+      resources:
+        CUSTOM_CPU: 10000
   flags:
-    disable_nfs_mount: true
     allow-cross-zone-autoscaling: false
-    instance_ranking_strategy:
-      - ranker_type: custom_group_order
-        ranker_config:
-          enable_replacement: true
-          group_order:
-            - 4CPU-4GB
-            - 1xL4:8CPU-32GB
+#    disable_nfs_mount: true
+#    instance_ranking_strategy:
+#      - ranker_type: custom_group_order
+#        ranker_config:
+#          enable_replacement: true
+#          group_order:
+#            - 4CPU-4GB
+#            - 1xL4:8CPU-32GB
 
 #runtime_env:
 #  placement_group_strategy: PACK
@@ -64,13 +68,15 @@ applications:
     ray_actor_options:
       num_cpus: 1
       num_gpus: 0
+      resources:
+        CUSTOM_CPU: 0.001
       #placement_group_bundles: cpu_bundle
     max_ongoing_requests: 5000
       
   - name: FaceAnalyzer
     #num_replicas: 1
     ray_actor_options:
-      num_cpus: 0.8
+      num_cpus: 0.2
       num_gpus: 0.1
       #placement_group_bundles: gpu_bundle
     max_ongoing_requests: 2
@@ -89,7 +95,7 @@ applications:
   - name: FaceSwapper
     #num_replicas: 1
     ray_actor_options:
-      num_cpus: 0.8
+      num_cpus: 0.2
       num_gpus: 0.1
       #placement_group_bundles: gpu_bundle
     max_ongoing_requests: 2
@@ -108,7 +114,7 @@ applications:
   - name: FaceEnhancer
     #num_replicas: 1
     ray_actor_options:
-      num_cpus: 0.8
+      num_cpus: 0.2
       num_gpus: 0.1
       #placement_group_bundles: gpu_bundle
     max_ongoing_requests: 2
@@ -148,6 +154,8 @@ applications:
     ray_actor_options:
       num_cpus: 1
       num_gpus: 0
+      resources:
+        CUSTOM_CPU: 0.001
       #placement_group_bundles: cpu_bundle
     max_ongoing_requests: 5000
 #    autoscaling_config:
@@ -165,10 +173,12 @@ applications:
   - name: GCPImageManager
     #num_replicas: 1
     ray_actor_options:
-      num_cpus: 0.1
-      num_gpus: 0
+      num_cpus: 0.2
+      resources:
+        CUSTOM_CPU: 0.001
+      #num_gpus: 0
       #placement_group_bundles: cpu_bundle
-    max_ongoing_requests: 5
+    max_ongoing_requests: 3
     autoscaling_config:
       target_ongoing_requests: 1
       min_replicas: 10

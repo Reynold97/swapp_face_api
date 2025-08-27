@@ -28,154 +28,115 @@ compute_config:
   flags:
     allow-cross-zone-autoscaling: false
 
-#runtime_env:
-#  placement_group_strategy: PACK
-#  placement_group_bundles:
-#    - name: gpu_bundle
-#      bundles:
-#        - CPU: 8
-#          GPU: 1
-#    - name: cpu_bundle
-#      bundles:
-#        - CPU: 4
+ray_version: 2.46.0
 
 query_auth_token_enabled: true
 
-logging_config: # (Optional) Configuration options for logging.
-  encoding: JSON # JSON or TEXT.
+logging_config:
+  encoding: JSON
   log_level: INFO
   enable_access_log: true
 
+http_options:
+  request_timeout_s: 60
+  keep_alive_timeout_s: 300
+
 applications:
-- name: SwapFaceAPI
-  route_prefix: /
-  import_path: app.api.og.main:app
-
-  deployments:
-  - name: APIIngress
-    num_replicas: 1
-    ray_actor_options:
-      num_cpus: 1
-      num_gpus: 0
-      #placement_group_bundles: cpu_bundle
-    max_ongoing_requests: 5000
-      
-  - name: FaceAnalyzer
-    #num_replicas: 1
-    ray_actor_options:
-      num_cpus: 0.1
-      num_gpus: 0.1
-      #placement_group_bundles: gpu_bundle
-    max_ongoing_requests: 2
-    autoscaling_config:
-      target_ongoing_requests: 2
-      min_replicas: 5
-      initial_replicas: 5
-      max_replicas: 500
-      upscale_delay_s: 10
-      downscale_delay_s: 1800
-      upscaling_factor: 1
-      downscaling_factor: 0.5
-      metrics_interval_s: 2
-      look_back_period_s: 2
-
-  - name: FaceSwapper
-    #num_replicas: 1
-    ray_actor_options:
-      num_cpus: 0.1
-      num_gpus: 0.1
-      #placement_group_bundles: gpu_bundle
-    max_ongoing_requests: 2
-    autoscaling_config:
-      target_ongoing_requests: 2
-      min_replicas: 1
-      initial_replicas: 1
-      max_replicas: 500
-      upscale_delay_s: 10
-      downscale_delay_s: 1800
-      upscaling_factor: 1
-      downscaling_factor: 0.5
-      metrics_interval_s: 2
-      look_back_period_s: 2
-
-  - name: FaceEnhancer
-    #num_replicas: 1
-    ray_actor_options:
-      num_cpus: 0.1
-      num_gpus: 0.1
-      #placement_group_bundles: gpu_bundle
-    max_ongoing_requests: 2
-    autoscaling_config:
-      target_ongoing_requests: 2
-      min_replicas: 4
-      initial_replicas: 4
-      max_replicas: 500
-      upscale_delay_s: 10
-      downscale_delay_s: 1800
-      upscaling_factor: 1
-      downscaling_factor: 0.5
-      metrics_interval_s: 2
-      look_back_period_s: 2
-
-  - name: CodeFormerEnhancer
-    #num_replicas: 1
-    ray_actor_options:
-      num_cpus: 0.1
-      num_gpus: 0.2
-      #placement_group_bundles: gpu_bundle
-    max_ongoing_requests: 3
-    autoscaling_config:
-      target_ongoing_requests: 1
-      min_replicas: 0
-      initial_replicas: 0
-      max_replicas: 500
-      upscale_delay_s: 5
-      downscale_delay_s: 300
-      upscaling_factor: 1
-      downscaling_factor: 1
-      metrics_interval_s: 2
-      look_back_period_s: 2
-
-#  - name: SwapProcessor
-#    num_replicas: 1
-#    ray_actor_options:
-#      num_cpus: 1
-#      num_gpus: 0
-      #placement_group_bundles: gpu_bundle
-#    max_ongoing_requests: 5000
-#    autoscaling_config:
-#      target_ongoing_requests: 25
-#      min_replicas: 1
-#      initial_replicas: 1
-#      max_replicas: 500
-#      upscale_delay_s: 10
-#      downscale_delay_s: 120
-#      upscaling_factor: 1
-#      downscaling_factor: 0.5
-#      metrics_interval_s: 2
-#      look_back_period_s: 20
-
-  - name: GCPImageManager
-    #num_replicas: 1
-    ray_actor_options:
-      num_cpus: 0.1
-      num_gpus: 0
-      #placement_group_bundles: cpu_bundle
-    max_ongoing_requests: 5
-    autoscaling_config:
-      target_ongoing_requests: 1
-      min_replicas: 10
-      initial_replicas: 10
-      max_replicas: 500
-      upscale_delay_s: 10
-      downscale_delay_s: 1800
-      upscaling_factor: 1
-      downscaling_factor: 0.5
-      metrics_interval_s: 2
-      look_back_period_s: 2
-    init_args:
+  - name: SwapFaceAPI
+    route_prefix: /
+    import_path: app.api.main:app
+    deployments:
+      - name: APIIngress
+        num_replicas: 1
+        ray_actor_options:
+          num_cpus: 1
+          num_gpus: 0
+        max_ongoing_requests: 5000
+      - name: FaceAnalyzer
+        ray_actor_options:
+          num_gpus: 0.1
+        autoscaling_config:
+          max_replicas: 500
+          min_replicas: 5
+          upscale_delay_s: 10
+          initial_replicas: 5
+          upscaling_factor: 1
+          downscale_delay_s: 180
+          downscaling_factor: 0.5
+          look_back_period_s: 2
+          metrics_interval_s: 2
+          target_ongoing_requests: 2
+        max_ongoing_requests: 2
+      - name: FaceSwapper
+        ray_actor_options:
+          num_gpus: 0.1
+        autoscaling_config:
+          max_replicas: 500
+          min_replicas: 2
+          upscale_delay_s: 10
+          initial_replicas: 2
+          upscaling_factor: 0.5
+          downscale_delay_s: 180
+          downscaling_factor: 0.5
+          look_back_period_s: 2
+          metrics_interval_s: 2
+          target_ongoing_requests: 2
+        max_ongoing_requests: 2
+      - name: FaceEnhancer
+        ray_actor_options:
+          num_gpus: 0.1
+        autoscaling_config:
+          max_replicas: 500
+          min_replicas: 3
+          upscale_delay_s: 10
+          initial_replicas: 3
+          upscaling_factor: 1
+          downscale_delay_s: 180
+          downscaling_factor: 0.5
+          look_back_period_s: 2
+          metrics_interval_s: 2
+          target_ongoing_requests: 2
+        max_ongoing_requests: 2
+      - name: CodeFormerEnhancer
+        ray_actor_options:
+          num_gpus: 0.2
+        autoscaling_config:
+          max_replicas: 500
+          min_replicas: 0
+          upscale_delay_s: 10
+          initial_replicas: 0
+          upscaling_factor: 0.5
+          downscale_delay_s: 180
+          downscaling_factor: 1
+          look_back_period_s: 2
+          metrics_interval_s: 2
+          target_ongoing_requests: 3
+        max_ongoing_requests: 5
+      - name: SwapProcessor
+        num_replicas: 1
+        ray_actor_options:
+          num_cpus: 1
+          num_gpus: 0
+        max_ongoing_requests: 5000
+      - name: GCPImageManager
+        init_args:
           - app/configs/anyscale_bucket_credentials.json
           - anyscale_tmp_faces
+        ray_actor_options:
+          num_cpus: 0.1
+          num_gpus: 0
+        autoscaling_config:
+          max_replicas: 500
+          min_replicas: 5
+          upscale_delay_s: 10
+          initial_replicas: 10
+          upscaling_factor: 1
+          downscale_delay_s: 180
+          downscaling_factor: 1
+          look_back_period_s: 2
+          metrics_interval_s: 2
+          target_ongoing_requests: 1
+        max_ongoing_requests: 5
 
 excludes: # (Optional) List of files to exclude from being packaged up for the job.
   - .git
@@ -183,10 +144,6 @@ excludes: # (Optional) List of files to exclude from being packaged up for the j
   - .DS_Store
   - __pycache__
   #- app/configs/anyscale_bucket_credentials.json
-
-http_options:
-  #request_timeout_s: 60 # (Optional) Timeout for HTTP requests in seconds. Default is no timeout.
-  keep_alive_timeout_s: 300 # (Optional) Timeout for HTTP keep-alive connections in seconds. Default is 5 seconds.
 
 ray_gcs_external_storage_config:
   enabled: false
