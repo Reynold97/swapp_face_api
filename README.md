@@ -152,18 +152,6 @@ docker run -p 8000:8000 \
 
 **Important:** Replace `/path/to/your/bucket_credentials.json` with the actual path to your downloaded GCP credentials file.
 
-### Quick Start without GCP (Only /swap_img endpoint)
-
-If you only want to use the `/swap_img` endpoint (direct file uploads), you can run without mounting credentials:
-
-```bash
-# Pull and run without GCP credentials
-docker pull [YOUR_DOCKERHUB_USERNAME]/swapp-face-api:latest
-docker run --gpus all -p 8000:8000 [YOUR_DOCKERHUB_USERNAME]/swapp-face-api:latest
-```
-
-**Note:** The `/swap_url` endpoint will not work without proper GCP credentials.
-
 ## API Documentation
 
 Once running, visit:
@@ -187,7 +175,7 @@ Upload images directly for face swapping.
 - `upscale`: Upscale factor (integer)
 
 ### POST /swap_url
-Swap faces using images from GCP storage.
+Swap faces using images from GCP storage. You need to previously upload the face and models images to the bucket and only pass the file names in the following form.
 
 **Body:**
 ```json
@@ -244,7 +232,7 @@ with open('result.png', 'wb') as f:
 
 - **GPU**: NVIDIA GPU with CUDA 11.8 support (recommended)
 - **Memory**: Minimum 8GB RAM, 16GB+ recommended
-- **Storage**: ~5GB for models and dependencies
+- **Storage**: ~20GB for models and dependencies
 
 ## Local Development
 
@@ -261,14 +249,6 @@ pip install -r codeformer_requirements.txt
 ```bash
 uvicorn app.api.main:app --reload --port 8000
 ```
-
-## Performance Notes
-
-Typical processing times on GPU:
-- Face Analysis: ~350ms
-- Face Swapping: ~1.7s
-- Enhancement: ~1.5s
-- **Total**: ~4.8s per swap
 
 ## Health Check
 
