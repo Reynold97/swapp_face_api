@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from ray import serve
 from enum import Enum
 from typing import List, Tuple, Dict, Optional, Union, Any
 
@@ -34,7 +33,6 @@ class NoTargetFaceError(SwapProcessorException):
         super().__init__(self.message)
 
 
-@serve.deployment()
 class SwapProcessor:
     """
     A component for processing face swaps in various modes.
@@ -162,12 +160,12 @@ class SwapProcessor:
             NoTargetFaceError: If no face is detected in the target image
         """
         # Extract the source face (first face found)
-        source_face = await self.analyzer_handle.extract_faces.remote(source_frame, index=0)
+        source_face = self.analyzer_handle.extract_faces(source_frame, index=0)
         if source_face is None:
             raise NoSourceFaceError()
             
         # Extract the target face (first face found)
-        target_face = await self.analyzer_handle.extract_faces.remote(target_frame, index=0)
+        target_face = self.analyzer_handle.extract_faces(target_frame, index=0)
         if target_face is None:
             raise NoTargetFaceError()
             
@@ -177,13 +175,13 @@ class SwapProcessor:
         
         # Apply the swap multiple times 
         for i in range(face_refinement_steps):
-            result_frame = await self.swapper_handle.swap_face.remote(
+            result_frame = self.swapper_handle.swap_face(
                 source_face, current_target_face, result_frame
             )
             
             # If we need to do more iterations, re-detect the face
             if i < face_refinement_steps - 1:
-                current_target_face = await self.analyzer_handle.extract_faces.remote(result_frame, index=0)
+                current_target_face = self.analyzer_handle.extract_faces(result_frame, index=0)
                 if current_target_face is None:
                     # If face detection fails, stop iterating
                     break
@@ -210,12 +208,12 @@ class SwapProcessor:
         Apply one source face to all detected faces in the target image.
         """
         # Extract the source face (first face found)
-        source_face = await self.analyzer_handle.extract_faces.remote(source_frame, index=0)
+        source_face = self.analyzer_handle.extract_faces(source_frame, index=0)
         if source_face is None:
             raise NoSourceFaceError()
             
         # Extract all target faces
-        target_faces = await self.analyzer_handle.extract_faces.remote(target_frame, index=-1)
+        target_faces = self.analyzer_handle.extract_faces(target_frame, index=-1)
         if target_faces is None or len(target_faces) == 0:
             raise NoTargetFaceError("No faces detected in the target image")
         
@@ -223,7 +221,7 @@ class SwapProcessor:
         result_frame = target_frame.copy()
         
         for target_face in target_faces:
-            result_frame = await self.swapper_handle.swap_face.remote(
+            result_frame = self.swapper_handle.swap_face(
                 source_face, target_face, result_frame
             )
         
@@ -252,12 +250,12 @@ class SwapProcessor:
         anchored in left-to-right order.
         """
         # Extract all source faces
-        source_faces = await self.analyzer_handle.extract_faces.remote(source_frame, index=-1)
+        source_faces = self.analyzer_handle.extract_faces(source_frame, index=-1)
         if source_faces is None or len(source_faces) == 0:
             raise NoSourceFaceError("No faces detected in the source image")
             
         # Extract all target faces
-        target_faces = await self.analyzer_handle.extract_faces.remote(target_frame, index=-1)
+        target_faces = self.analyzer_handle.extract_faces(target_frame, index=-1)
         if target_faces is None or len(target_faces) == 0:
             raise NoTargetFaceError("No faces detected in the target image")
         
@@ -298,7 +296,7 @@ class SwapProcessor:
             target_x = np.mean(target_face.kps[:, 0]) 
             print(f"Swapping source face at x:{source_x:.1f} to target face at x:{target_x:.1f}")
             
-            result_frame = await self.swapper_handle.swap_face.remote(
+            result_frame = self.swapper_handle.swap_face(
                 source_face, target_face, result_frame
             )
         
@@ -326,17 +324,17 @@ class SwapProcessor:
         Apply faces from source to target based on embedding similarity.
         """
         # Extract all source faces
-        source_faces = await self.analyzer_handle.extract_faces.remote(source_frame, index=-1)
+        source_faces = self.analyzer_handle.extract_faces(source_frame, index=-1)
         if source_faces is None or len(source_faces) == 0:
             raise NoSourceFaceError("No faces detected in the source image")
             
         # Extract all target faces
-        target_faces = await self.analyzer_handle.extract_faces.remote(target_frame, index=-1)
+        target_faces = self.analyzer_handle.extract_faces(target_frame, index=-1)
         if target_faces is None or len(target_faces) == 0:
             raise NoTargetFaceError("No faces detected in the target image")
             
         # Find optimal face matches based on similarity
-        face_matches = await self.analyzer_handle.match_faces_greedy.remote(source_faces, target_faces)
+        face_matches = self.analyzer_handle.match_faces_greedy(source_faces, target_faces)
         
         # Apply swaps sequentially
         result_frame = target_frame.copy()
@@ -350,7 +348,7 @@ class SwapProcessor:
             target_face = target_faces[target_idx]
             
             # Apply the swap
-            result_frame = await self.swapper_handle.swap_face.remote(
+            result_frame = self.swapper_handle.swap_face(
                 source_face, target_face, result_frame
             )
             
@@ -399,7 +397,7 @@ class SwapProcessor:
         if use_codeformer and self.codeformer_handle:
             # For CodeFormer, we can enhance each face individually
             for face in faces:
-                enhanced_frame = await self.codeformer_handle.enhance_face.remote(
+                enhanced_frame = self.codeformer_handle.enhance_face(
                     face, 
                     enhanced_frame, 
                     codeformer_fidelity,
@@ -410,7 +408,7 @@ class SwapProcessor:
         elif self.enhancer_handle:
             # For the standard enhancer, enhance each face
             for face in faces:
-                enhanced_frame = await self.enhancer_handle.enhance_face.remote(
+                enhanced_frame = self.enhancer_handle.enhance_face(
                     face, enhanced_frame
                 )
                 

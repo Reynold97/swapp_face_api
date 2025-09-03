@@ -2,7 +2,6 @@ import cv2
 import cupy as cp
 import numpy as np
 import onnxruntime
-from ray import serve
 import logging
 logger = logging.getLogger("ray.serve")
 from app.utils.utils import conditional_download
@@ -12,7 +11,7 @@ from app.utils.utils import conditional_download
 #########   ENHANCER   #########
 ################################
 
-@serve.deployment()
+
 class FaceEnhancer:
     """
     A class used to enhance faces in a given frame using GFPGAN v1.4 model.

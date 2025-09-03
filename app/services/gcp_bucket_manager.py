@@ -1,13 +1,11 @@
 import cv2
 import uuid
 import numpy as np
-from ray import serve
 from google.cloud import storage
 from google.oauth2.service_account import Credentials
 from google.api_core import exceptions
 
 
-@serve.deployment()
 class GCPImageManager:
     """
     Manages the upload and download of images to/from a GCP bucket.

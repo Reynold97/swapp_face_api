@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import onnxruntime
-from ray import serve
 from app.utils.utils import Face, conditional_download
 
 
@@ -9,7 +8,7 @@ from app.utils.utils import Face, conditional_download
 #########   ANALYZER   #########
 ################################
 
-@serve.deployment()
+
 class FaceAnalyzer:
     """
     A class used to analyze faces in a given frame using models for face detection and recognition.

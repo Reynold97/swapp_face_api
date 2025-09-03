@@ -2,7 +2,6 @@ import os
 import cv2
 import torch
 import numpy as np
-from ray import serve
 from torchvision.transforms.functional import normalize
 from app.utils.utils import conditional_download, Face
 
@@ -18,7 +17,7 @@ from app.pipe.components.codeformer.basicsr.utils.misc import get_device
 from app.pipe.components.codeformer.facelib.utils.face_restoration_helper import FaceRestoreHelper
 from app.pipe.components.codeformer.basicsr.utils.registry import ARCH_REGISTRY
 
-@serve.deployment()
+
 class CodeFormerEnhancer:
     """
     A class used to enhance faces in a given frame using CodeFormer model.

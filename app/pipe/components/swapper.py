@@ -3,7 +3,6 @@ import onnx
 import cupy as cp
 import numpy as np
 import onnxruntime
-from ray import serve
 from onnx import numpy_helper
 from app.utils.utils import Face, conditional_download
 
@@ -12,7 +11,7 @@ from app.utils.utils import Face, conditional_download
 #########   SWAPPER   ##########
 ################################
 
-@serve.deployment()
+
 class FaceSwapper:
     """
     A class used to swap faces in a given frame using `inswapper_128` model.
