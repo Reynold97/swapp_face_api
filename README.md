@@ -52,13 +52,69 @@ For `/swap_url` endpoint, you need to set up:
    - Click "Add Key" → "Create new key" → "JSON"
    - Download the JSON file and rename it to `bucket_credentials.json`
 
+## Server Deployment
+
+### Server Requirements
+
+To deploy this API on a cloud server, you'll need:
+
+- **GPU Server**: A server instance with NVIDIA GPU support
+- **NVIDIA Drivers**: CUDA 11.8 or compatible drivers installed
+- **Docker**: Docker engine with NVIDIA Container Toolkit for GPU support
+- **Network Access**: Firewall configured to allow traffic on port 8000
+
+### Deployment Steps
+
+#### 1. Server Setup
+- Create a GPU-enabled server instance from your cloud provider
+- Choose an instance with NVIDIA drivers and CUDA 11.8 pre-installed (recommended)
+- Ensure the server has sufficient resources (minimum 8GB RAM, 16GB+ recommended)
+- Configure the server with appropriate disk space for Docker images and models
+
+#### 2. Install Docker and GPU Support
+- Install Docker engine on your server
+- Install NVIDIA Container Toolkit to enable GPU access in Docker containers
+- Verify GPU access with `nvidia-smi` command
+- Test Docker GPU integration
+
+#### 3. Transfer Credentials
+- Copy your `bucket_credentials.json` file to the server
+- Create a credentials directory (e.g., `/home/username/credentials/`)
+- Set appropriate file permissions (600) for security
+- Verify the file is accessible and readable
+
+#### 4. Configure Network Access
+- Configure your server's firewall to allow incoming traffic on port 8000
+- For cloud providers, create firewall rules to allow HTTP traffic on port 8000
+- Note your server's external IP address for API access
+
+#### 5. Deploy the Container
+- Pull the Docker image from Docker Hub
+- Run the container with GPU support and credentials mounted
+- Verify the container starts successfully and models load on GPU
+- Test API access using the server's external IP
+
+#### 6. Verification
+- Access the Swagger documentation at `http://YOUR_SERVER_IP:8000/docs`
+- Test the `/swap_img` endpoint with sample images
+- Monitor container logs for any errors or warnings
+- Verify GPU usage during face swapping operations
+
+### Production Considerations
+
+- **Security**: Restrict firewall rules to specific IP ranges when possible
+- **Monitoring**: Set up logging and monitoring for the container
+- **Backup**: Regularly backup your credentials and any persistent data
+- **Updates**: Plan for periodic updates of the Docker image
+- **Scaling**: Consider load balancing for multiple instances if needed
+
 ## Quick Start with Docker
 
 ### Option 1: Pull from Docker Hub (Recommended)
 
 ```bash
 # Pull the pre-built image
-docker pull [YOUR_DOCKERHUB_USERNAME]/swapp-face-api:latest
+docker pull docker pull reynoldoramas/swapp_face_blackbox:latest
 
 # Run with GPU support (mount your GCP credentials)
 docker run --gpus all -p 8000:8000 \
@@ -66,9 +122,11 @@ docker run --gpus all -p 8000:8000 \
   [YOUR_DOCKERHUB_USERNAME]/swapp-face-api:latest
 
 # Run without GPU (CPU only)
-docker run -p 8000:8000 \
-  -v /path/to/your/bucket_credentials.json:/app/credentials/bucket_credentials.json:ro \
-  [YOUR_DOCKERHUB_USERNAME]/swapp-face-api:latest
+docker run -d -p 8000:8000 \
+  --gpus all \
+  -v /home/username/credentials/bucket_credentials.json:/app/credentials/bucket_credentials.json:ro \
+  --name swapp-face-api \
+  reynoldoramas/swapp_face_blackbox:latest
 ```
 
 ### Option 2: Build from Source
@@ -247,6 +305,18 @@ CUDA device not found, running on CPU
 - Restart Docker after installation
 - Use `--gpus all` flag when running the container
 
-## License
+**4. Cannot access API externally**
+```
+Connection refused or timeout when accessing http://SERVER_IP:8000
+```
+- Check firewall rules allow traffic on port 8000
+- Verify the container is running and listening on 0.0.0.0:8000
+- Ensure the server's external IP is correctly configured
 
-[Add your license information here]
+**5. Container exits immediately**
+```
+Container starts but stops immediately
+```
+- Check container logs with `docker logs [container_name]`
+- Verify credentials file is properly mounted and accessible
+- Ensure sufficient disk space for models and temporary files
