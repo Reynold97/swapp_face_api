@@ -59,7 +59,7 @@ analyzer = FaceAnalyzer()
 swapper = FaceSwapper()
 enhancer = FaceEnhancer()
 codeformer = CodeFormerEnhancer()
-img_manager = GCPImageManager("app/credentials/bucket_credentials.json", "anyscale_tmp_faces")
+img_manager = GCPImageManager("/app/credentials/bucket_credentials.json", "anyscale_tmp_faces")
 
 # Create the SwapProcessor
 swap_processor = SwapProcessor(analyzer, swapper, enhancer, codeformer)
