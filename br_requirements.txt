@@ -1,0 +1,5 @@
+gdown
+tensorrt
+tensorrt_bindings
+cuda-python
+cupy-cuda11x

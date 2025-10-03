@@ -1,5 +1,5 @@
 # Start with CUDA 11.8 devel image that includes cuDNN 8
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu22.04
 
 # Set environment variable to avoid tzdata prompt
 ENV DEBIAN_FRONTEND=noninteractive
@@ -55,6 +55,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy CodeFormer requirements and install them
 COPY --chown=ray:100 codeformer_requirements.txt .
 RUN pip install --no-cache-dir -r codeformer_requirements.txt
+
+# Copy BR requirements and install them
+COPY --chown=ray:100 br_requirements.txt .
+RUN pip install --no-cache-dir -r br_requirements.txt
 
 # Install additional Python packages
 RUN pip install --no-cache-dir \
