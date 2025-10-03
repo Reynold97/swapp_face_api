@@ -67,13 +67,15 @@ async def lifespan(app: FastAPI):
         'models/weights/realesrgan'
     )
     
-    # Download background removal ONNX model using gdown
+    # Download and convert background removal model
     models_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'models')
     models_dir = os.path.abspath(models_dir)
     os.makedirs(models_dir, exist_ok=True)
     
     onnx_model_path = os.path.join(models_dir, 'BiRefNet_dynamic-general-epoch_174_batch.onnx')
+    engine_path = os.path.join(models_dir, 'engine_fp16.trt')
     
+    # Step 1: Download ONNX model if not exists
     if not os.path.exists(onnx_model_path):
         logger.info("Downloading background removal ONNX model...")
         try:
@@ -88,6 +90,36 @@ async def lifespan(app: FastAPI):
             raise
     else:
         logger.info(f"ONNX model already exists at: {onnx_model_path}")
+    
+    # Step 2: Convert ONNX to TensorRT engine if not exists
+    if not os.path.exists(engine_path):
+        logger.info("Converting ONNX model to TensorRT FP16 engine...")
+        logger.info("This may take 1-2 minutes on first run...")
+        try:
+            # Import the conversion function
+            from app.utils.tensorrt_utils import convert_onnx_to_engine_fp16
+            
+            # Convert with same settings as fp16.py
+            convert_onnx_to_engine_fp16(
+                onnx_filename=onnx_model_path,
+                engine_filename=engine_path,
+                max_batch_size=20
+            )
+            
+            # Check engine file was created and log size
+            if os.path.exists(engine_path):
+                size_mb = os.path.getsize(engine_path) / (1024 * 1024)
+                logger.info(f"TensorRT engine created successfully: {engine_path}")
+                logger.info(f"Engine size: {size_mb:.1f} MB")
+            else:
+                raise RuntimeError("Engine file was not created")
+                
+        except Exception as e:
+            logger.error(f"Failed to convert ONNX to TensorRT engine: {e}")
+            logger.error("Background removal API will not be available")
+            # Don't raise - allow service to start without background removal
+    else:
+        logger.info(f"TensorRT engine already exists at: {engine_path}")
     
     yield
     
