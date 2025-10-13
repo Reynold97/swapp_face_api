@@ -4,9 +4,9 @@ FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu22.04
 # Set environment variable to avoid tzdata prompt
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install Python 3.10 and other necessary tools
+# Install Python 3.12 and other necessary tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.10 \
+    python3.12 \
     python3-pip \
     python3-venv \
     wget \
