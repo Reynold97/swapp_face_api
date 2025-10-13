@@ -1,5 +1,5 @@
-# Start with CUDA 11.8 devel image that includes cuDNN 8
-FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu22.04
+# Start with CUDA 12.9.1 devel image that includes cuDNN 8
+FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu24.04
 
 # Set environment variable to avoid tzdata prompt
 ENV DEBIAN_FRONTEND=noninteractive
@@ -34,7 +34,7 @@ USER ray
 ENV HOME=/home/ray
 
 # Create a virtual environment
-RUN python3.10 -m venv --system-site-packages $HOME/virtualenv
+RUN python3.12 -m venv --system-site-packages $HOME/virtualenv
 ENV PATH=$HOME/virtualenv/bin:$PATH
 ENV VIRTUAL_ENV=$HOME/virtualenv
 
