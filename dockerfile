@@ -25,7 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean
 
 # Create the `ray` user
-RUN useradd -ms /bin/bash -d /home/ray ray --uid 1000 --gid 100 \
+RUN (userdel -r $(getent passwd 1000 | cut -d: -f1) 2>/dev/null || true) \
+    && useradd -ms /bin/bash -d /home/ray ray --uid 1000 --gid 100 \
     && usermod -aG root ray \
     && echo 'ray ALL=NOPASSWD: ALL' >> /etc/sudoers
 
