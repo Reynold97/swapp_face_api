@@ -82,10 +82,6 @@ RUN pip install --no-cache-dir cuda-python==12.6.0
 RUN pip uninstall -y onnxruntime onnxruntime-gpu || true
 RUN pip install --no-cache-dir onnxruntime-gpu --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/
 
-# Copy BR requirements (only gdown now) and install
-COPY --chown=ray:100 br_requirements.txt .
-RUN pip install --no-cache-dir -r br_requirements.txt
-
 # Install additional Python packages
 RUN pip install --no-cache-dir \
     ray[serve]==2.46.0 \
