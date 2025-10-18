@@ -1,3 +1,0 @@
-gdown
-cuda-python
-cupy-cuda12x

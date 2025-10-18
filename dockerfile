@@ -40,6 +40,10 @@ RUN python3.12 -m venv --system-site-packages $HOME/virtualenv
 ENV PATH=$HOME/virtualenv/bin:$PATH
 ENV VIRTUAL_ENV=$HOME/virtualenv
 
+# Upgrade pip and ensure no old cupy versions exist
+RUN pip install --upgrade pip setuptools wheel && \
+    pip uninstall -y cupy-cuda11x cupy-cuda10x cupy-cuda110 cupy-cuda111 cupy-cuda112 cupy || true
+
 # Install Google Cloud SDK without using deprecated apt-key
 RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | \
     sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
@@ -58,12 +62,25 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY --chown=ray:100 codeformer_requirements.txt .
 RUN pip install --no-cache-dir -r codeformer_requirements.txt
 
-# Copy BR requirements and install them
+# Install CUDA and TensorRT packages in the correct order
+# First, install TensorRT from NVIDIA which includes bindings
+RUN pip install --no-cache-dir --extra-index-url https://pypi.nvidia.com tensorrt tensorrt-cu12 tensorrt-cu12-bindings tensorrt-cu12-libs
+
+# Install CUDA runtime packages
+RUN pip install --no-cache-dir \
+    nvidia-cuda-runtime-cu12 \
+    nvidia-cuda-nvrtc-cu12 \
+    nvidia-cudnn-cu12
+
+# Install cupy for CUDA 12.x
+RUN pip install --no-cache-dir cupy-cuda12x
+
+# Install cuda-python (compatible version for Python 3.12 and CUDA 12.x)
+RUN pip install --no-cache-dir cuda-python
+
+# Copy BR requirements (only gdown now) and install
 COPY --chown=ray:100 br_requirements.txt .
 RUN pip install --no-cache-dir -r br_requirements.txt
-
-# Install TensorRT from NVIDIA's official repository (compatible with CUDA 12.x)
-RUN pip install --no-cache-dir --extra-index-url https://pypi.nvidia.com tensorrt
 
 # Install additional Python packages
 RUN pip install --no-cache-dir \
