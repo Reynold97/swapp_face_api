@@ -78,10 +78,6 @@ RUN pip install --no-cache-dir cupy-cuda12x
 # Install cuda-python (compatible version for Python 3.12 and CUDA 12.x)
 RUN pip install --no-cache-dir cuda-python
 
-# Copy BR requirements (only gdown now) and install
-COPY --chown=ray:100 br_requirements.txt .
-RUN pip install --no-cache-dir -r br_requirements.txt
-
 # Install additional Python packages
 RUN pip install --no-cache-dir \
     ray[serve]==2.46.0 \
