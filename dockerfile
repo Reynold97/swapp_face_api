@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.12 \
     python3-pip \
     python3-venv \
+    python3-dev \
     wget \
     git \
     sudo \
@@ -60,6 +61,9 @@ RUN pip install --no-cache-dir -r codeformer_requirements.txt
 # Copy BR requirements and install them
 COPY --chown=ray:100 br_requirements.txt .
 RUN pip install --no-cache-dir -r br_requirements.txt
+
+# Install TensorRT from NVIDIA's official repository (compatible with CUDA 12.x)
+RUN pip install --no-cache-dir --extra-index-url https://pypi.nvidia.com tensorrt
 
 # Install additional Python packages
 RUN pip install --no-cache-dir \
