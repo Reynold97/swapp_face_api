@@ -62,21 +62,29 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY --chown=ray:100 codeformer_requirements.txt .
 RUN pip install --no-cache-dir -r codeformer_requirements.txt
 
-# Install CUDA and TensorRT packages in the correct order
-# First, install TensorRT from NVIDIA which includes bindings
+# Install CUDA and TensorRT packages
 RUN pip install --no-cache-dir --extra-index-url https://pypi.nvidia.com tensorrt tensorrt-cu12 tensorrt-cu12-bindings tensorrt-cu12-libs
 
 # Install CUDA runtime packages
 RUN pip install --no-cache-dir \
     nvidia-cuda-runtime-cu12 \
     nvidia-cuda-nvrtc-cu12 \
-    nvidia-cudnn-cu12
+    nvidia-cudnn-cu12 \
+    nvidia-cublas-cu12
 
 # Install cupy for CUDA 12.x
 RUN pip install --no-cache-dir cupy-cuda12x
 
-# Install cuda-python (compatible version for Python 3.12 and CUDA 12.x)
-RUN pip install --no-cache-dir cuda-python
+# Install cuda-python 12.6.0 (compatible with old import style)
+RUN pip install --no-cache-dir cuda-python==12.6.0
+
+# Install ONNX Runtime with CUDA 12.x support (CRITICAL FIX)
+RUN pip uninstall -y onnxruntime onnxruntime-gpu || true
+RUN pip install --no-cache-dir onnxruntime-gpu --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/
+
+# Copy BR requirements (only gdown now) and install
+COPY --chown=ray:100 br_requirements.txt .
+RUN pip install --no-cache-dir -r br_requirements.txt
 
 # Install additional Python packages
 RUN pip install --no-cache-dir \
@@ -90,7 +98,8 @@ RUN pip install --no-cache-dir \
 # Set CUDA environment variables
 ENV CUDA_HOME="/usr/local/cuda"
 ENV PATH="/usr/local/cuda/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}"
+ENV CUDA_MODULE_LOADING="LAZY"
 
 # Give ray user permissions to write to /tmp/workspace
 RUN sudo mkdir -p /tmp/workspace && sudo chmod a+rwx -R /tmp/workspace
