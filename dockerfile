@@ -80,6 +80,7 @@ RUN pip install --no-cache-dir cuda-python==12.6.0
 
 # Install ONNX Runtime with CUDA 12.x support (CRITICAL FIX)
 RUN pip uninstall -y onnxruntime onnxruntime-gpu || true
+RUN pip install --no-cache-dir onnx
 RUN pip install --no-cache-dir onnxruntime-gpu --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/
 
 # Install additional Python packages
