@@ -1,6 +1,6 @@
 name: SwapFaceAPI-Service-Prod-GPU
 
-image_uri: 'reynoldoramas/anyscale-swapface:py3.10-devcu11.8-cudnn8-ray2.46.0'
+image_uri: 'reynoldoramas/anyscale-swapface:ubuntu24.04-py3.12-cuda12.9.1-cudnn-devel-ray2.46.0'
 
 cloud: ANYSCALE_CLOUD_4
 

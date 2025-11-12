@@ -37,19 +37,60 @@ class BackgroundRemover:
         self.max_batch_size = max_batch_size
         self.trt_logger = Logger(Logger.INFO)
         
-        # Construct engine path relative to project root
-        engine_path = os.path.join(
+        # Construct paths
+        self.model_dir = os.path.join(
             os.path.dirname(__file__), 
             '..', '..', '..', 
-            'models', 
-            'engine_fp16.trt'
+            'models'
         )
-        engine_path = os.path.abspath(engine_path)
-        
-        logger.info(f"Loading TensorRT engine from: {engine_path}")
-        
+        self.model_dir = os.path.abspath(self.model_dir)
+        os.makedirs(self.model_dir, exist_ok=True)
+
+        onnx_path = os.path.join(self.model_dir, 'BiRefNet_dynamic-general-epoch_174_batch.onnx')
+        engine_path = os.path.join(self.model_dir, 'engine_fp16.trt')
+
+        # Step 1: Download ONNX model if not exists
+        if not os.path.exists(onnx_path):
+            logger.info("Downloading background removal ONNX model...")
+            import subprocess
+            try:
+                subprocess.run([
+                    'gdown', 
+                    '170qUq80CnimcWGK-VJTLEW-dVp5PI5Wd',
+                    '-O', onnx_path
+                ], check=True)
+                logger.info(f"ONNX model downloaded to: {onnx_path}")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Failed to download ONNX model: {e}")
+                raise
+        else:
+            logger.info(f"ONNX model already exists at: {onnx_path}")
+
+        # Step 2: Build TensorRT engine if not exists
         if not os.path.exists(engine_path):
-            raise ValueError(f"TensorRT engine not found at: {engine_path}")
+            logger.info("Converting ONNX model to TensorRT FP16 engine...")
+            logger.info("This may take 1-2 minutes on first run...")
+            try:
+                from app.utils.tensorrt_utils import convert_onnx_to_engine_fp16
+                
+                convert_onnx_to_engine_fp16(
+                    onnx_filename=onnx_path,
+                    engine_filename=engine_path,
+                    max_batch_size=max_batch_size
+                )
+                
+                if os.path.exists(engine_path):
+                    size_mb = os.path.getsize(engine_path) / (1024 * 1024)
+                    logger.info(f"TensorRT engine created: {engine_path} ({size_mb:.1f} MB)")
+                else:
+                    raise RuntimeError("Failed to create TensorRT engine")
+            except Exception as e:
+                logger.error(f"Failed to convert ONNX to TensorRT: {e}")
+                raise
+        else:
+            logger.info(f"Using existing TensorRT engine: {engine_path}")
+
+        logger.info(f"Loading TensorRT engine from: {engine_path}")
         
         self.engine, self.context = self._load_engine(engine_path)
         

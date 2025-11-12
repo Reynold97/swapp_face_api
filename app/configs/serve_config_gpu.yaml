@@ -102,8 +102,8 @@ applications:
     max_ongoing_requests: 3
     autoscaling_config:
       target_ongoing_requests: 1
-      min_replicas: 1
-      initial_replicas: 1
+      min_replicas: 0
+      initial_replicas: 0
       max_replicas: 50
       upscale_delay_s: 10
       downscale_delay_s: 300
@@ -139,8 +139,8 @@ applications:
     max_ongoing_requests: 3 
     autoscaling_config:
       target_ongoing_requests: 1
-      min_replicas: 0
-      initial_replicas: 0
+      min_replicas: 1
+      initial_replicas: 1
       max_replicas: 50
       upscale_delay_s: 10
       downscale_delay_s: 300

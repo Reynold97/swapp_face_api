@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request, UploadFile, File, Depends, HTTPException, 
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.encoders import jsonable_encoder
 from contextlib import asynccontextmanager
+from datetime import datetime
 import cv2
 import numpy as np
 from io import BytesIO
@@ -66,60 +67,6 @@ async def lifespan(app: FastAPI):
         'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/RealESRGAN_x2plus.pth',
         'models/weights/realesrgan'
     )
-    
-    # Download and convert background removal model
-    models_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'models')
-    models_dir = os.path.abspath(models_dir)
-    os.makedirs(models_dir, exist_ok=True)
-    
-    onnx_model_path = os.path.join(models_dir, 'BiRefNet_dynamic-general-epoch_174_batch.onnx')
-    engine_path = os.path.join(models_dir, 'engine_fp16.trt')
-    
-    # Step 1: Download ONNX model if not exists
-    if not os.path.exists(onnx_model_path):
-        logger.info("Downloading background removal ONNX model...")
-        try:
-            subprocess.run([
-                'gdown', 
-                '170qUq80CnimcWGK-VJTLEW-dVp5PI5Wd',
-                '-O', onnx_model_path
-            ], check=True)
-            logger.info(f"ONNX model downloaded to: {onnx_model_path}")
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to download ONNX model: {e}")
-            raise
-    else:
-        logger.info(f"ONNX model already exists at: {onnx_model_path}")
-    
-    # Step 2: Convert ONNX to TensorRT engine if not exists
-    if not os.path.exists(engine_path):
-        logger.info("Converting ONNX model to TensorRT FP16 engine...")
-        logger.info("This may take 1-2 minutes on first run...")
-        try:
-            # Import the conversion function
-            from app.utils.tensorrt_utils import convert_onnx_to_engine_fp16
-            
-            # Convert with same settings as fp16.py
-            convert_onnx_to_engine_fp16(
-                onnx_filename=onnx_model_path,
-                engine_filename=engine_path,
-                max_batch_size=20
-            )
-            
-            # Check engine file was created and log size
-            if os.path.exists(engine_path):
-                size_mb = os.path.getsize(engine_path) / (1024 * 1024)
-                logger.info(f"TensorRT engine created successfully: {engine_path}")
-                logger.info(f"Engine size: {size_mb:.1f} MB")
-            else:
-                raise RuntimeError("Engine file was not created")
-                
-        except Exception as e:
-            logger.error(f"Failed to convert ONNX to TensorRT engine: {e}")
-            logger.error("Background removal API will not be available")
-            # Don't raise - allow service to start without background removal
-    else:
-        logger.info(f"TensorRT engine already exists at: {engine_path}")
     
     yield
     
@@ -511,6 +458,76 @@ class APIIngress:
         except Exception as e:
             logger.error(f"Batch Remove BG Error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    # ==================== HEALTHCHECK ENDPOINT ====================
+
+    @app.get("/health", 
+            tags=["System"],
+            summary="Health check endpoint",
+            response_model=dict)
+    async def health_check(self):
+        """
+        Simple health check endpoint to verify the API is running.
+        Returns status and basic information about the service.
+        """
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "service": "Face Swap & Background Removal API",
+            "version": "2.0.0"
+        }
+
+    @app.get("/health/detailed",
+            tags=["System"],
+            summary="Detailed health check with component status")
+    async def detailed_health_check(self):
+        """
+        Detailed health check that verifies all service components.
+        """
+        health_status = {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "service": "Face Swap & Background Removal API",
+            "version": "2.0.0",
+            "components": {}
+        }
+        
+        # Check if deployments are accessible
+        try:
+            # Try to access the Ray Serve context to verify it's running
+            replica_context = get_replica_context()
+            health_status["components"]["ray_serve"] = {
+                "status": "healthy",
+                "deployment": replica_context.deployment,
+                "replica_id": replica_context.replica_tag
+            }
+        except Exception as e:
+            health_status["components"]["ray_serve"] = {
+                "status": "unhealthy",
+                "error": str(e)
+            }
+            health_status["status"] = "degraded"
+        
+        # Check if models directory exists
+        models_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'models')
+        models_dir = os.path.abspath(models_dir)
+        
+        if os.path.exists(models_dir):
+            # Count model files
+            model_files = [f for f in os.listdir(models_dir) if f.endswith(('.onnx', '.pth', '.trt'))]
+            health_status["components"]["models"] = {
+                "status": "healthy",
+                "count": len(model_files),
+                "path": models_dir
+            }
+        else:
+            health_status["components"]["models"] = {
+                "status": "unhealthy",
+                "error": "Models directory not found"
+            }
+            health_status["status"] = "degraded"
+        
+        return health_status
 
     # ==================== HELPER METHODS ====================
 

@@ -3,7 +3,7 @@ import numpy as np
 import tensorrt as trt
 import ctypes
 from tensorrt_bindings import Logger
-from cuda.bindings import driver as cuda, runtime as cudart
+from cuda import cuda, cudart
 from typing import Optional, List, Union
 
 
